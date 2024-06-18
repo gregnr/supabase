@@ -73,31 +73,27 @@ export default function TablesGraph({ schema }: { schema: string }) {
         deletable: false,
         style: {
           stroke: 'hsl(var(--border-stronger))',
-          strokeWidth: 1,
-          strokeDasharray: 5,
+          strokeWidth: 2,
+          strokeDasharray: 10,
+          strokeDashoffset: -10,
           // Manually create animation so that it doesn't interfere with our custom edge component
           animation: 'dashdraw 0.5s linear infinite',
         },
       }}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      minZoom={0.8}
-      maxZoom={1.8}
+      minZoom={0.4}
+      maxZoom={1}
       proOptions={{ hideAttribution: true }}
-      onInit={(flow) => {
-        // Call `fitView` imperatively in order to set padding
-        flow.fitView({
-          padding: 0.4,
-        })
-      }}
     >
       <Background
-        gap={16}
+        gap={32}
         className={cn(
           'bg-neutral-800 transition-colors',
           isLoading || isError || isEmpty ? 'text-neutral-700' : 'text-neutral-500'
         )}
         variant={BackgroundVariant.Dots}
+        size={2}
         color="currentColor"
       />
 

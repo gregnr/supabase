@@ -12,8 +12,8 @@ import {
 import { cn } from 'ui'
 
 // ReactFlow is scaling everything by the factor of 2
-export const TABLE_NODE_WIDTH = 320
-export const TABLE_NODE_ROW_HEIGHT = 40
+export const TABLE_NODE_WIDTH = 640
+export const TABLE_NODE_ROW_HEIGHT = 80
 
 export type TableNodeData = {
   name: string
@@ -32,7 +32,7 @@ export type TableNodeData = {
 const inOutTop = {
   hidden: {
     opacity: 0,
-    y: -20,
+    y: -40,
   },
   show: {
     opacity: 1,
@@ -56,11 +56,11 @@ export const TableNode = ({
   // ref: https://github.com/wbkd/react-flow/discussions/2698
   const hiddenNodeConnector = '!h-px !w-px !min-w-0 !min-h-0 !cursor-grab !border-0 !opacity-0'
 
-  const itemHeight = 'h-[22px]'
+  const itemHeight = 'h-[44px]'
 
   if (data.isForeign) {
     return (
-      <header className="text-[0.55rem] px-2 py-1 border-[0.5px] rounded-[4px] bg-alternative text-default flex gap-1 items-center">
+      <header className="text-[1.1rem] px-4 py-2 border-[1px] rounded-[8px] bg-alternative text-default flex gap-2 items-center">
         {data.name}
         {targetPosition && (
           <Handle
@@ -76,7 +76,7 @@ export const TableNode = ({
 
   return (
     <m.div
-      className="overflow-hidden rounded-[4px] shadow-md bg-scale-400"
+      className="overflow-hidden rounded-[8px] bg-scale-400"
       style={{ width: TABLE_NODE_WIDTH / 2 }}
       variants={{
         hidden: {
@@ -95,11 +95,11 @@ export const TableNode = ({
     >
       <header
         className={cn(
-          'text-[0.55rem] px-2 bg-brand-600 text-white flex gap-1 items-center',
+          'text-[1.1rem] px-4 bg-brand-600 text-white flex gap-2 items-center',
           itemHeight
         )}
       >
-        <Table2 strokeWidth={1} size={12} className="" />
+        <Table2 strokeWidth={2} size={24} className="" />
 
         {/* Animate the old title out and new title in */}
         <AnimatePresence mode="popLayout">
@@ -120,10 +120,10 @@ export const TableNode = ({
         <m.div
           key={column.id}
           className={cn(
-            'text-[8px] leading-5 relative flex flex-row justify-items-start',
+            'text-[16px] leading-10 relative flex flex-row justify-items-start',
             'bg-neutral-300',
             'border-t border-neutral-200',
-            'border-t-[0.5px]',
+            'border-t-[1px]',
             'overflow-hidden',
             itemHeight
           )}
@@ -142,7 +142,7 @@ export const TableNode = ({
         >
           <div
             className={cn(
-              'gap-[0.24rem] flex mx-2 align-middle items-center justify-start',
+              'gap-[0.48rem] flex mx-4 align-middle items-center justify-start',
               column.isPrimary && 'basis-1/5'
             )}
           >
@@ -156,7 +156,7 @@ export const TableNode = ({
                   animate="show"
                   exit="hidden"
                 >
-                  <Key size={8} strokeWidth={1} className={cn('flex-shrink-0', 'text-light')} />
+                  <Key size={16} strokeWidth={2} className={cn('flex-shrink-0', 'text-light')} />
                 </m.div>
               )}
             </AnimatePresence>
@@ -171,7 +171,7 @@ export const TableNode = ({
                   animate="show"
                   exit="hidden"
                 >
-                  <DiamondIcon size={8} strokeWidth={1} className="flex-shrink-0 text-light" />
+                  <DiamondIcon size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
                 </m.div>
               ) : (
                 <m.div
@@ -182,8 +182,8 @@ export const TableNode = ({
                   exit="hidden"
                 >
                   <DiamondIcon
-                    size={8}
-                    strokeWidth={1}
+                    size={16}
+                    strokeWidth={2}
                     fill="currentColor"
                     className="flex-shrink-0 text-light"
                   />
@@ -201,7 +201,7 @@ export const TableNode = ({
                   animate="show"
                   exit="hidden"
                 >
-                  <Fingerprint size={8} strokeWidth={1} className="flex-shrink-0 text-light" />
+                  <Fingerprint size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
                 </m.div>
               )}
             </AnimatePresence>
@@ -216,7 +216,7 @@ export const TableNode = ({
                   animate="show"
                   exit="hidden"
                 >
-                  <Hash size={8} strokeWidth={1} className="flex-shrink-0 text-light" />
+                  <Hash size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
                 </m.div>
               )}
             </AnimatePresence>
@@ -227,7 +227,7 @@ export const TableNode = ({
             <AnimatePresence mode="popLayout">
               <m.span
                 key={column.name}
-                className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[85px]"
+                className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[170px]"
                 variants={inOutTop}
                 initial="hidden"
                 animate="show"
@@ -241,7 +241,7 @@ export const TableNode = ({
             <AnimatePresence mode="popLayout">
               <m.span
                 key={column.format}
-                className="px-2 inline-flex justify-end font-mono text-lighter text-[0.4rem]"
+                className="px-4 inline-flex justify-end font-mono text-lighter text-[0.8rem]"
                 variants={inOutTop}
                 initial="hidden"
                 animate="show"
