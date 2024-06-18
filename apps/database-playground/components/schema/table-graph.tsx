@@ -3,7 +3,7 @@ import { PostgresTable } from '@gregnr/postgres-meta/base'
 import { uniqBy } from 'lodash'
 import { Loader } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -12,9 +12,11 @@ import ReactFlow, {
   Node,
   Position,
   useReactFlow,
+  useStore,
 } from 'reactflow'
 import { cn } from 'ui'
 import { useTablesQuery } from '~/data/tables/tables-query'
+import { useDebounce } from '~/lib/hooks'
 import SchemaGraphLegend from './legend'
 import { TABLE_NODE_ROW_HEIGHT, TABLE_NODE_WIDTH, TableEdge, TableNode } from './table-node'
 
@@ -44,6 +46,13 @@ export default function TablesGraph({ schema }: { schema: string }) {
     []
   )
 
+  const fitView = useCallback(() => {
+    reactFlowInstance.fitView({
+      padding: 0.4,
+      duration: 500,
+    })
+  }, [reactFlowInstance])
+
   useEffect(() => {
     if (tables) {
       getGraphDataFromTables(tables).then(({ nodes, edges }) => {
@@ -51,17 +60,10 @@ export default function TablesGraph({ schema }: { schema: string }) {
         reactFlowInstance.setEdges(edges)
 
         // it needs to happen during next event tick
-        setTimeout(
-          () =>
-            reactFlowInstance.fitView({
-              padding: 0.4,
-              duration: 500,
-            }),
-          100
-        )
+        setTimeout(() => fitView(), 100)
       })
     }
-  }, [reactFlowInstance, tables, resolvedTheme])
+  }, [reactFlowInstance, tables, resolvedTheme, fitView])
 
   return (
     <ReactFlow
@@ -86,6 +88,7 @@ export default function TablesGraph({ schema }: { schema: string }) {
       maxZoom={1}
       proOptions={{ hideAttribution: true }}
     >
+      <ResizeHandler onResize={() => fitView()} />
       <Background
         gap={32}
         className={cn(
@@ -304,4 +307,44 @@ const layoutElements = (nodes: Node[], edges: Edge[]) => {
   })
 
   return { nodes, edges }
+}
+
+/**
+ * Hook to detect React Flow container resizes.
+ * Calls `fn` when `width` or `height` changes.
+ *
+ * Debounces at 200ms by default.
+ */
+function useOnResize(fn: () => void, debounce = 200) {
+  const reactFlowInstance = useReactFlow()
+
+  const width = useStore(({ width }) => width)
+  const height = useStore(({ height }) => height)
+
+  const debouncedWidth = useDebounce(width, debounce)
+  const debouncedHeight = useDebounce(height, debounce)
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(fn, [reactFlowInstance, debouncedWidth, debouncedHeight])
+}
+
+type ResizeHandlerProps = {
+  onResize: () => void
+  debounce?: number
+}
+
+/**
+ * Component to detect React Flow container resizes.
+ * Calls `onResize` when `width` or `height` changes.
+ *
+ * Debounces at 200ms by default.
+ *
+ * It's better to use this child component instead of the
+ * `useOnResize` hook directly in order to prevent a large
+ * amount of re-renders on the main component.
+ */
+function ResizeHandler({ onResize, debounce = 200 }: ResizeHandlerProps) {
+  useOnResize(onResize, debounce)
+
+  return null
 }
