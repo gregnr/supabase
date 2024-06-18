@@ -385,7 +385,7 @@ export default function Page() {
                         return (
                           <div
                             key={message.id}
-                            className="self-stretch flex flex-col items-stretch gap-6"
+                            className="ml-4 self-stretch flex flex-col items-stretch gap-6"
                           >
                             {message.content && (
                               <ReactMarkdown
@@ -463,7 +463,7 @@ export default function Page() {
                 <AnimatePresence>
                   {isLoading && (
                     <m.div
-                      className="-translate-x-12 flex gap-4 justify-start items-center"
+                      className="-translate-x-8 flex gap-4 justify-start items-center"
                       variants={{
                         hidden: { opacity: 0 },
                         show: { opacity: 1 },
