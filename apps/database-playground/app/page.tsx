@@ -23,7 +23,7 @@ import { format } from 'sql-formatter'
 import { AiIconAnimation, markdownComponents } from 'ui'
 import { Button } from 'ui/src/components/shadcn/ui/button'
 import SchemaGraph from '~/components/schema/graph'
-import { useTablesQuery } from '~/data/tables/tables-query'
+import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
 import { db, resetDb } from '~/lib/db'
 import { useLocalStorage, useReportSuggestions } from '~/lib/hooks'
 import { TabValue, tabsSchema } from '~/lib/schema'
@@ -33,6 +33,24 @@ const loadFramerFeatures = () => import('./framer-features').then((res) => res.d
 
 const initialMigrationSql = '-- Migrations will appear here as you chat with Supabase AI\n'
 const initialSeedSql = '-- Seeds will appear here as you chat with Supabase AI\n'
+
+function getInitialMessages(tables?: TablesData): Message[] {
+  return [
+    {
+      id: nanoid(),
+      role: 'assistant',
+      content: '',
+      toolInvocations: [
+        {
+          toolCallId: nanoid(),
+          toolName: 'getDatabaseSchema',
+          args: {},
+          result: tables,
+        },
+      ],
+    },
+  ]
+}
 
 export default function Page() {
   const [migrationSql, setMigrationSql] = useLocalStorage('migrations', initialMigrationSql)
@@ -44,24 +62,7 @@ export default function Page() {
 
   const { data: tables, refetch } = useTablesQuery({ schemas: ['public'], includeColumns: true })
 
-  const initialMessages = useMemo<Message[]>(
-    () => [
-      {
-        id: nanoid(),
-        role: 'assistant',
-        content: '',
-        toolInvocations: [
-          {
-            toolCallId: nanoid(),
-            toolName: 'getDatabaseSchema',
-            args: {},
-            result: tables,
-          },
-        ],
-      },
-    ],
-    [tables]
-  )
+  const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
 
   const { messages, setMessages, input, setInput, handleInputChange, append, stop, isLoading } =
     useChat({
@@ -333,12 +334,12 @@ export default function Page() {
           <TabsContent value="settings" className="h-full">
             <Button
               onClick={async () => {
+                await resetDb()
+                const { data: tables } = await refetch()
                 setSeedSql(initialSeedSql)
                 setMigrationSql(initialMigrationSql)
                 setTab('diagram')
-                setMessages(initialMessages)
-                await resetDb()
-                await refetch()
+                setMessages(getInitialMessages(tables))
               }}
             >
               Reset database
