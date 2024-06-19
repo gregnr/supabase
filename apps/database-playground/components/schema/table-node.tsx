@@ -1,6 +1,11 @@
 import { PopoverClose } from '@radix-ui/react-popover'
 import { Button } from '@ui/components/shadcn/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@ui/components/shadcn/ui/popover'
+import {
+  Popover,
+  PopoverContent,
+  PopoverSeparator,
+  PopoverTrigger,
+} from '@ui/components/shadcn/ui/popover'
 import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import {
@@ -12,6 +17,7 @@ import {
   Network,
   Pencil,
   Table2,
+  Trash2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
@@ -431,6 +437,22 @@ function TableColumn({
                 <Network size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
 
                 <span>Create index</span>
+              </Button>
+            </PopoverClose>
+            <PopoverSeparator className="my-1" />
+            <PopoverClose asChild>
+              <Button
+                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                onClick={() =>
+                  append({
+                    role: 'user',
+                    content: `Remove the "${column.name}" column in the ${data.name} table`,
+                  })
+                }
+              >
+                <Trash2 size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+
+                <span>Remove column</span>
               </Button>
             </PopoverClose>
           </>
