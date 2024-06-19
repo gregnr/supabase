@@ -20,6 +20,7 @@ import {
   NodeProps,
   Position,
   getSmoothStepPath,
+  useOnViewportChange,
   useUpdateNodeInternals,
 } from 'reactflow'
 import { cn } from 'ui'
@@ -160,6 +161,12 @@ function TableColumn({
 }: TableColumnProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
+
+  useOnViewportChange({
+    onChange() {
+      setIsPopoverOpen(false)
+    },
+  })
 
   const { append } = useChat({
     id: 'main',
