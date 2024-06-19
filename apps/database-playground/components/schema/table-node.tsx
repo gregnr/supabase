@@ -1,5 +1,9 @@
+import { PopoverClose } from '@radix-ui/react-popover'
+import { Button } from '@ui/components/shadcn/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@ui/components/shadcn/ui/popover'
+import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
-import { DiamondIcon, Fingerprint, Hash, Key, Table2 } from 'lucide-react'
+import { CircleSlash, DiamondIcon, Fingerprint, Hash, Key, Pencil, Table2 } from 'lucide-react'
 import { useState } from 'react'
 import {
   EdgeProps,
@@ -40,6 +44,12 @@ const inOutTop = {
   },
 }
 
+// Important styles is a nasty hack to use Handles (required for edges calculations), but do not show them in the UI.
+// ref: https://github.com/wbkd/react-flow/discussions/2698
+const hiddenNodeConnector = '!h-px !w-px !min-w-0 !min-h-0 !cursor-grab !border-0 !opacity-0'
+
+const itemHeight = 'h-[44px]'
+
 /**
  * Custom node to display database tables.
  */
@@ -51,12 +61,6 @@ export const TableNode = ({
 }: NodeProps<TableNodeData>) => {
   const updateNodeInternals = useUpdateNodeInternals()
   const [showHandles, setShowHandles] = useState(false)
-
-  // Important styles is a nasty hack to use Handles (required for edges calculations), but do not show them in the UI.
-  // ref: https://github.com/wbkd/react-flow/discussions/2698
-  const hiddenNodeConnector = '!h-px !w-px !min-w-0 !min-h-0 !cursor-grab !border-0 !opacity-0'
-
-  const itemHeight = 'h-[44px]'
 
   if (data.isForeign) {
     return (
@@ -117,8 +121,54 @@ export const TableNode = ({
       </header>
 
       {data.columns.map((column) => (
-        <m.div
+        <TableColumn
           key={column.id}
+          column={column}
+          data={data}
+          showHandles={showHandles}
+          sourcePosition={sourcePosition}
+          targetPosition={targetPosition}
+        />
+      ))}
+    </m.div>
+  )
+}
+
+type TableColumnProps = {
+  column: TableNodeData['columns'][number]
+  data: TableNodeData
+  showHandles: boolean
+  sourcePosition?: Position
+  targetPosition?: Position
+}
+
+function TableColumn({
+  column,
+  data,
+  showHandles,
+  sourcePosition,
+  targetPosition,
+}: TableColumnProps) {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [isRenaming, setIsRenaming] = useState(false)
+
+  const { append } = useChat({
+    id: 'main',
+    api: 'api/chat',
+  })
+
+  return (
+    <Popover
+      open={isPopoverOpen}
+      onOpenChange={(open) => {
+        setIsPopoverOpen(open)
+        if (!open) {
+          setIsRenaming(false)
+        }
+      }}
+    >
+      <PopoverTrigger asChild className="cursor-pointer">
+        <m.div
           className={cn(
             'text-[16px] leading-10 relative flex flex-row justify-items-start',
             'bg-neutral-300',
@@ -270,8 +320,86 @@ export const TableNode = ({
             />
           )}
         </m.div>
-      ))}
-    </m.div>
+      </PopoverTrigger>
+      <PopoverContent className="p-2 flex flex-col" portal>
+        {isRenaming ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+
+              if (e.target instanceof HTMLFormElement) {
+                const formData = new FormData(e.target)
+                const newName = formData.get('name')
+
+                append({
+                  role: 'user',
+                  content: `Rename the "${column.name}" column in the ${data.name} table to "${newName}"`,
+                })
+              }
+
+              setIsPopoverOpen(false)
+              setIsRenaming(false)
+            }}
+          >
+            <input
+              name="name"
+              className="flex-grow border-none focus-visible:ring-0 text-base bg-inherit placeholder:text-neutral-400"
+              placeholder={`Rename ${column.name}`}
+              autoComplete="off"
+              autoFocus
+            />
+          </form>
+        ) : (
+          <>
+            <Button
+              className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+              onClick={() => setIsRenaming(true)}
+            >
+              <Pencil size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+              <span>Rename column</span>
+            </Button>
+            <PopoverClose asChild>
+              <Button
+                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                onClick={() =>
+                  append({
+                    role: 'user',
+                    content: `Make the "${column.name}" column in the ${data.name} table ${column.isNullable ? 'not nullable' : 'nullable'}`,
+                  })
+                }
+              >
+                <DiamondIcon
+                  size={16}
+                  strokeWidth={2}
+                  fill={column.isNullable ? 'currentColor' : 'none'}
+                  className="flex-shrink-0 text-light"
+                />
+                <span>Make {column.isNullable ? 'not nullable' : 'nullable'}</span>
+              </Button>
+            </PopoverClose>
+            <PopoverClose asChild>
+              <Button
+                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                onClick={() =>
+                  append({
+                    role: 'user',
+                    content: `Make the "${column.name}" column in the ${data.name} table ${column.isUnique ? 'not unique' : 'unique'}`,
+                  })
+                }
+              >
+                {column.isUnique ? (
+                  <CircleSlash size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+                ) : (
+                  <Fingerprint size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+                )}
+
+                <span>Make {column.isUnique ? 'not unique' : 'unique'}</span>
+              </Button>
+            </PopoverClose>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }
 
