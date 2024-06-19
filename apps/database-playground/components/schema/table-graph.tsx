@@ -87,6 +87,8 @@ export default function TablesGraph({ schema }: { schema: string }) {
       minZoom={0.4}
       maxZoom={1}
       proOptions={{ hideAttribution: true }}
+      panOnScroll
+      panOnScrollSpeed={1}
     >
       <ResizeHandler onResize={() => fitView()} />
       <Background
