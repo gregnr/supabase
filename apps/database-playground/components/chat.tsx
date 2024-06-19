@@ -6,7 +6,7 @@ import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import { throttle } from 'lodash'
 import { ArrowUp, Square } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Chart as ChartWrapper } from 'react-chartjs-2'
 import { ErrorBoundary } from 'react-error-boundary'
 import ReactMarkdown from 'react-markdown'
@@ -44,7 +44,6 @@ export type ChatProps = {
 
 export default function Chat({ onToolCall }: ChatProps) {
   const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
-
   const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
 
   const [brainstormIdeas] = useState(false) // temporarily turn off for now
@@ -55,9 +54,17 @@ export default function Chat({ onToolCall }: ChatProps) {
     api: 'api/chat',
     maxToolRoundtrips: 10,
     onToolCall,
-    // Provide the LLM with the current schema before the chat starts
     initialMessages,
   })
+
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Focus input when LLM starts responding (for cases when it wasn't focused prior)
+  useEffect(() => {
+    if (isLoading) {
+      inputRef.current?.focus()
+    }
+  }, [isLoading])
 
   const lastMessage = messages.at(-1)
 
@@ -363,6 +370,7 @@ export default function Chat({ onToolCall }: ChatProps) {
             </m.div>
           )}
           <input
+            ref={inputRef}
             id="input"
             name="prompt"
             autoComplete="off"
