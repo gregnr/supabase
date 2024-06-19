@@ -20,6 +20,8 @@ import { useReportSuggestions } from '~/lib/hooks'
 
 export function getInitialMessages(tables?: TablesData): Message[] {
   return [
+    // An artificial tool call containing the DB schema
+    // as if it was already called by the LLM
     {
       id: nanoid(),
       role: 'assistant',

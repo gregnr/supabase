@@ -13,7 +13,7 @@ import {
   Pencil,
   Table2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   EdgeProps,
   Handle,
@@ -24,6 +24,8 @@ import {
   useUpdateNodeInternals,
 } from 'reactflow'
 import { cn } from 'ui'
+import { useTablesQuery } from '~/data/tables/tables-query'
+import { getInitialMessages } from '../chat'
 
 // ReactFlow is scaling everything by the factor of 2
 export const TABLE_NODE_WIDTH = 640
@@ -162,6 +164,9 @@ function TableColumn({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
 
+  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
+  const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
+
   useOnViewportChange({
     onChange() {
       setIsPopoverOpen(false)
@@ -171,6 +176,7 @@ function TableColumn({
   const { append } = useChat({
     id: 'main',
     api: 'api/chat',
+    initialMessages,
   })
 
   return (
