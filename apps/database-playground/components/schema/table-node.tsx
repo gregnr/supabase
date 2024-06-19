@@ -3,7 +3,16 @@ import { Button } from '@ui/components/shadcn/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@ui/components/shadcn/ui/popover'
 import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
-import { CircleSlash, DiamondIcon, Fingerprint, Hash, Key, Pencil, Table2 } from 'lucide-react'
+import {
+  CircleSlash,
+  DiamondIcon,
+  Fingerprint,
+  Hash,
+  Key,
+  Network,
+  Pencil,
+  Table2,
+} from 'lucide-react'
 import { useState } from 'react'
 import {
   EdgeProps,
@@ -394,6 +403,21 @@ function TableColumn({
                 )}
 
                 <span>Make {column.isUnique ? 'not unique' : 'unique'}</span>
+              </Button>
+            </PopoverClose>
+            <PopoverClose asChild>
+              <Button
+                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                onClick={() =>
+                  append({
+                    role: 'user',
+                    content: `Help me choose the best index for the "${column.name}" column in the ${data.name} table`,
+                  })
+                }
+              >
+                <Network size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+
+                <span>Create index</span>
               </Button>
             </PopoverClose>
           </>
