@@ -1,3 +1,7 @@
+'use client'
+
+import 'chart.js/auto'
+
 import {
   Accordion,
   AccordionContent,

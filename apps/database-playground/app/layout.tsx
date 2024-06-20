@@ -1,4 +1,3 @@
-import 'chart.js/auto'
 import 'katex/dist/katex.min.css'
 import './globals.css'
 
