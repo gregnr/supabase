@@ -1,4 +1,3 @@
-import { PGlite } from '@electric-sql/pglite'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { nanoid } from 'ai'
 import { useChat } from 'ai/react'
@@ -11,10 +10,7 @@ export type UseReportSuggestionsOptions = {
   enabled?: boolean
 }
 
-export function useReportSuggestions(
-  db: PGlite,
-  { enabled = true }: UseReportSuggestionsOptions = {}
-) {
+export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOptions = {}) {
   const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
   const [reports, setReports] = useState<Report[]>()
 

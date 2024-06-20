@@ -8,7 +8,6 @@ import { ArrowDown, ArrowUp, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AiIconAnimation } from 'ui'
 import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
-import { db } from '~/lib/db'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
 import ChatMessage from './chat-message'
 
@@ -41,7 +40,7 @@ export default function Chat({ onToolCall }: ChatProps) {
   const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
 
   const [brainstormIdeas] = useState(false) // temporarily turn off for now
-  const { reports } = useReportSuggestions(db, { enabled: brainstormIdeas })
+  const { reports } = useReportSuggestions({ enabled: brainstormIdeas })
 
   const { messages, input, setInput, handleInputChange, append, stop, isLoading } = useChat({
     id: 'main',

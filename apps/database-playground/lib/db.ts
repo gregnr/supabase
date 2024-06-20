@@ -1,16 +1,16 @@
-import { PGlite } from '@electric-sql/pglite'
+import { PGliteWorker } from '@gregnr/pglite/worker'
 import { nanoid } from 'ai'
 
 // React's `useEffect` double-rendering in dev mode causes pglite errors
 // Temp: storing singleton instance in module scope
 // TODO: get working in WebWorkers
-export let db: PGlite
+export let db: PGliteWorker
 export let currentDbId: string = getDbId()
 
 loadDb(currentDbId)
 
 export async function loadDb(id: string) {
-  db = new PGlite(`idb://${id}`)
+  db = new PGliteWorker(`idb://${id}`)
   await db.waitReady
   return db
 }
