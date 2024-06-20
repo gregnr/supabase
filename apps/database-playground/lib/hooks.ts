@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { nanoid } from 'ai'
 import { useChat } from 'ai/react'
 import { codeBlock } from 'common-tags'
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from 'react'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
 
@@ -130,8 +130,19 @@ export type UseAutoScrollProps = {
  * content is added to it.
  */
 export function useAutoScroll({ enabled = true }: UseAutoScrollProps) {
+  // Store container element in state so that we can
+  // mount/dismount handlers via `useEffect` (see below)
   const [container, setContainer] = useState<HTMLDivElement>()
+
+  // Maintain `isSticky` state for the consumer to access
   const [isSticky, setIsSticky] = useState(true)
+
+  // Maintain `isStickyRef` value for internal use
+  // that isn't limited to React's state lifecycle
+  const isStickyRef = useRef(isSticky)
+
+  // Track when we're in the middle of an automated scroll
+  const isAutomatedScrollingRef = useRef(false)
 
   const ref = useCallback((element: HTMLDivElement | null) => {
     if (element) {
@@ -139,41 +150,39 @@ export function useAutoScroll({ enabled = true }: UseAutoScrollProps) {
     }
   }, [])
 
-  // Convenience function for consumers to scroll to the bottom
-  // of the container
-  const scrollToEnd = useCallback(() => {
-    if (container) {
-      container.scrollTo({
-        top: container.scrollHeight - container.clientHeight,
-        behavior: 'smooth',
-      })
-    }
-  }, [container])
+  // Convenience function to allow consumers to
+  // scroll to the bottom of the container
+  const scrollToEnd = useCallback(
+    (behavior: ScrollBehavior) => {
+      if (container) {
+        isAutomatedScrollingRef.current = true
+        container.scrollTo({
+          top: container.scrollHeight - container.clientHeight,
+          behavior,
+        })
+      }
+    },
+    [container]
+  )
 
   useEffect(() => {
     let resizeObserver: ResizeObserver | undefined
 
-    // Maintain an internal `isSticky` that isn't limited
-    // to React's state lifecycle
-    let isSticky = true
-
-    // Track when we're in the middle of an automated scroll
-    let isAutomatedScrolling = false
-
     function onScrollStart() {
-      const isAtBottom =
-        !!container && container.scrollTop + container.clientHeight >= container.scrollHeight
+      if (container) {
+        const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight
 
-      // We're sticky if we're in the middle of an automated scroll
-      // or if the user manually scrolled to the bottom
-      isSticky = isAutomatedScrolling || isAtBottom
+        // We're sticky if we're in the middle of an automated scroll
+        // or if the user manually scrolled to the bottom
+        isStickyRef.current = isAutomatedScrollingRef.current || isAtBottom
 
-      // Update state so that consumers can hook into sticky status
-      setIsSticky(isSticky)
+        // Update state so that consumers can hook into sticky status
+        setIsSticky(isStickyRef.current)
+      }
     }
 
     function onScrollEnd() {
-      isAutomatedScrolling = false
+      isAutomatedScrollingRef.current = false
     }
 
     if (container) {
@@ -183,12 +192,8 @@ export function useAutoScroll({ enabled = true }: UseAutoScrollProps) {
       if (enabled) {
         // Scroll when the container's children resize
         resizeObserver = new ResizeObserver(() => {
-          if (isSticky) {
-            isAutomatedScrolling = true
-            container.scrollTo({
-              top: container.scrollHeight - container.clientHeight,
-              behavior: 'smooth',
-            })
+          if (isStickyRef.current) {
+            scrollToEnd('smooth')
           }
         })
 
@@ -204,7 +209,7 @@ export function useAutoScroll({ enabled = true }: UseAutoScrollProps) {
       container?.removeEventListener('scrollend', onScrollEnd)
       resizeObserver?.disconnect()
     }
-  }, [container, enabled])
+  }, [container, scrollToEnd, enabled])
 
   return { ref, isSticky, scrollToEnd }
 }

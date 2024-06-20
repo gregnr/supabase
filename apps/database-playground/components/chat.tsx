@@ -212,7 +212,7 @@ export default function Chat({ onToolCall }: ChatProps) {
               <Button
                 className="rounded-full w-8 h-8 p-1.5 text-neutral-50 bg-neutral-900"
                 onClick={() => {
-                  scrollToEnd()
+                  scrollToEnd(isLoading ? 'instant' : 'smooth')
                   inputRef.current?.focus()
                 }}
               >
@@ -239,7 +239,7 @@ export default function Chat({ onToolCall }: ChatProps) {
 
             // Scroll to bottom after the message has rendered
             setTimeout(() => {
-              scrollToEnd()
+              scrollToEnd('smooth')
             }, 0)
           }}
         >
