@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { nanoid } from 'ai'
 import { useChat } from 'ai/react'
 import { codeBlock } from 'common-tags'
-import { Dispatch, SetStateAction, useEffect, useState } from 'react'
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
 
@@ -119,4 +119,92 @@ export function useDebounce<T>(value: T, delay: number) {
   }, [value, delay])
 
   return debouncedValue
+}
+
+export type UseAutoScrollProps = {
+  enabled?: boolean
+}
+
+/**
+ * Automatically scroll a container to the bottom as new
+ * content is added to it.
+ */
+export function useAutoScroll({ enabled = true }: UseAutoScrollProps) {
+  const [container, setContainer] = useState<HTMLDivElement>()
+  const [isSticky, setIsSticky] = useState(true)
+
+  const ref = useCallback((element: HTMLDivElement | null) => {
+    if (element) {
+      setContainer(element)
+    }
+  }, [])
+
+  // Convenience function for consumers to scroll to the bottom
+  // of the container
+  const scrollToEnd = useCallback(() => {
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight - container.clientHeight,
+        behavior: 'smooth',
+      })
+    }
+  }, [container])
+
+  useEffect(() => {
+    let resizeObserver: ResizeObserver | undefined
+
+    // Maintain an internal `isSticky` that isn't limited
+    // to React's state lifecycle
+    let isSticky = true
+
+    // Track when we're in the middle of an automated scroll
+    let isAutomatedScrolling = false
+
+    function onScrollStart() {
+      const isAtBottom =
+        !!container && container.scrollTop + container.clientHeight >= container.scrollHeight
+
+      // We're sticky if we're in the middle of an automated scroll
+      // or if the user manually scrolled to the bottom
+      isSticky = isAutomatedScrolling || isAtBottom
+
+      // Update state so that consumers can hook into sticky status
+      setIsSticky(isSticky)
+    }
+
+    function onScrollEnd() {
+      isAutomatedScrolling = false
+    }
+
+    if (container) {
+      container.addEventListener('scroll', onScrollStart)
+      container.addEventListener('scrollend', onScrollEnd)
+
+      if (enabled) {
+        // Scroll when the container's children resize
+        resizeObserver = new ResizeObserver(() => {
+          if (isSticky) {
+            isAutomatedScrolling = true
+            container.scrollTo({
+              top: container.scrollHeight - container.clientHeight,
+              behavior: 'smooth',
+            })
+          }
+        })
+
+        // Monitor the size of the children within the scroll container
+        for (const child of Array.from(container.children)) {
+          resizeObserver.observe(child)
+        }
+      }
+    }
+
+    return () => {
+      container?.removeEventListener('scroll', onScrollStart)
+      container?.removeEventListener('scrollend', onScrollEnd)
+      resizeObserver?.disconnect()
+    }
+  }, [container, enabled])
+
+  return { ref, isSticky, scrollToEnd }
 }
