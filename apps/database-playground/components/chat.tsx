@@ -115,7 +115,9 @@ export default function Chat({ onToolCall }: ChatProps) {
                 (message) =>
                   message.content ||
                   // Don't include tool calls that don't have an associated UI
-                  !message.toolInvocations?.every((t) => !['generateChart'].includes(t.toolName))
+                  !message.toolInvocations?.every(
+                    (t) => !['generateChart', 'executeSql'].includes(t.toolName)
+                  )
               )
               .map((message) => (
                 <ChatMessage key={message.id} message={message} />

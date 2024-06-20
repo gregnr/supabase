@@ -78,8 +78,6 @@ export default function Page() {
           try {
             const { sql } = toolCall.args as any
 
-            console.log(sql)
-
             const parseResult = await parseQuery(sql)
 
             assertDefined(parseResult.stmts, 'Expected parse result to contain statements')
@@ -123,6 +121,7 @@ export default function Page() {
             }
 
             return {
+              success: true,
               queryResults: results,
               updatedSchema: tables,
             }

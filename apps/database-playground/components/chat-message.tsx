@@ -1,5 +1,12 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@ui/components/shadcn/ui/accordion'
 import { Message } from 'ai'
 import { m } from 'framer-motion'
+import { DatabaseZap } from 'lucide-react'
 import { memo } from 'react'
 import { Chart } from 'react-chartjs-2'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -7,7 +14,7 @@ import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
-import { markdownComponents } from 'ui'
+import { CodeBlock, markdownComponents } from 'ui'
 
 export type ChatMessageProps = {
   message: Message
@@ -51,6 +58,50 @@ function ChatMessage({ message }: ChatMessageProps) {
           )}
           {message.toolInvocations?.map((toolInvocation) => {
             switch (toolInvocation.toolName) {
+              case 'executeSql': {
+                if (!('result' in toolInvocation)) {
+                  return null
+                }
+
+                if ('error' in toolInvocation.result) {
+                  return (
+                    <div
+                      key={toolInvocation.toolCallId}
+                      className="bg-destructive-300 px-6 py-4 rounded-md"
+                    >
+                      Error executing SQL
+                    </div>
+                  )
+                }
+
+                const { sql } = toolInvocation.args
+
+                return (
+                  <Accordion type="single" collapsible>
+                    <AccordionItem
+                      value="item-1"
+                      className="border-2 border-neutral-100 bg-neutral-50 px-3 py-2 rounded-md"
+                    >
+                      <AccordionTrigger className="p-0 gap-2">
+                        <div className="flex gap-2 items-center font-normal text-lighter text-sm">
+                          <DatabaseZap size={14} />
+                          Executed SQL
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="py-2 [&_>div]:pb-0">
+                        <CodeBlock
+                          key={toolInvocation.toolCallId}
+                          className="language-sql border-none px-0 pb-2 !bg-inherit"
+                          hideLineNumbers
+                          hideCopy
+                        >
+                          {sql}
+                        </CodeBlock>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )
+              }
               case 'generateChart': {
                 if (!('result' in toolInvocation)) {
                   return undefined
