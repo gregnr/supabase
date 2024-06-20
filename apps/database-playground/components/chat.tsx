@@ -7,16 +7,11 @@ import { AnimatePresence, m } from 'framer-motion'
 import { throttle } from 'lodash'
 import { ArrowUp, Square } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Chart as ChartWrapper } from 'react-chartjs-2'
-import { ErrorBoundary } from 'react-error-boundary'
-import ReactMarkdown from 'react-markdown'
-import rehypeKatex from 'rehype-katex'
-import remarkGfm from 'remark-gfm'
-import remarkMath from 'remark-math'
-import { AiIconAnimation, markdownComponents } from 'ui'
+import { AiIconAnimation } from 'ui'
 import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
 import { db } from '~/lib/db'
 import { useReportSuggestions } from '~/lib/hooks'
+import ChatMessage from './chat-message'
 
 export function getInitialMessages(tables?: TablesData): Message[] {
   return [
@@ -120,111 +115,11 @@ export default function Chat({ onToolCall }: ChatProps) {
                 (message) =>
                   message.content ||
                   // Don't include tool calls that don't have an associated UI
-                  !message.toolInvocations?.every((t) => t.toolName !== 'generateChart')
+                  !message.toolInvocations?.every((t) => !['generateChart'].includes(t.toolName))
               )
-              .map((message) => {
-                switch (message.role) {
-                  case 'user':
-                    return (
-                      <m.div
-                        key={message.id}
-                        layoutId={message.id}
-                        variants={{
-                          hidden: {
-                            opacity: 0,
-                            y: 10,
-                          },
-                          show: {
-                            opacity: 1,
-                            y: 0,
-                          },
-                        }}
-                        initial="hidden"
-                        animate="show"
-                        className="self-end px-5 py-2.5 text-base rounded-full bg-neutral-100"
-                      >
-                        {message.content}
-                      </m.div>
-                    )
-                  case 'assistant':
-                    return (
-                      <div
-                        key={message.id}
-                        className="ml-4 self-stretch flex flex-col items-stretch gap-6"
-                      >
-                        {message.content && (
-                          <ReactMarkdown
-                            remarkPlugins={[
-                              remarkGfm,
-                              [remarkMath, { singleDollarTextMath: false }],
-                            ]}
-                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
-                            components={{ ...markdownComponents, img: () => null }}
-                            className="prose [&_.katex-display>.katex]:text-left"
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        )}
-                        {message.toolInvocations?.map((toolInvocation) => {
-                          switch (toolInvocation.toolName) {
-                            case 'generateChart': {
-                              if (!('result' in toolInvocation)) {
-                                return undefined
-                              }
-
-                              if ('error' in toolInvocation.result) {
-                                return (
-                                  <div
-                                    key={toolInvocation.toolCallId}
-                                    className="bg-destructive-300 px-6 py-4 rounded-md"
-                                  >
-                                    Error loading chart
-                                  </div>
-                                )
-                              }
-
-                              const { type, data, options } = toolInvocation.args.config
-                              return (
-                                <ErrorBoundary
-                                  key={toolInvocation.toolCallId}
-                                  fallbackRender={() => (
-                                    <div className="bg-destructive-300 px-6 py-4 rounded-md">
-                                      Error loading chart
-                                    </div>
-                                  )}
-                                >
-                                  <m.div
-                                    className="relative w-full max-w-2xl h-[50vw] max-h-96 my-8"
-                                    variants={{
-                                      hidden: {
-                                        opacity: 0,
-                                      },
-                                      show: {
-                                        opacity: 1,
-                                      },
-                                    }}
-                                    initial="hidden"
-                                    animate="show"
-                                  >
-                                    <ChartWrapper
-                                      className="max-w-full max-h-full"
-                                      type={type}
-                                      data={data}
-                                      options={{
-                                        ...options,
-                                        maintainAspectRatio: false,
-                                      }}
-                                    />
-                                  </m.div>
-                                </ErrorBoundary>
-                              )
-                            }
-                          }
-                        })}
-                      </div>
-                    )
-                }
-              })}
+              .map((message) => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
             <AnimatePresence>
               {isLoading && (
                 <m.div
