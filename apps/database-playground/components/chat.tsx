@@ -52,6 +52,11 @@ export default function Chat({ onToolCall }: ChatProps) {
 
   const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll({ enabled: isLoading })
 
+  // Scroll to end when chat is first mounted
+  useEffect(() => {
+    scrollToEnd('instant')
+  }, [scrollToEnd])
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Focus input when LLM starts responding (for cases when it wasn't focused prior)
