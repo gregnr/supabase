@@ -199,7 +199,7 @@ function TableColumn({
         <m.div
           className={cn(
             'text-[16px] leading-10 relative flex flex-row justify-items-start',
-            'bg-neutral-300',
+            'bg-neutral-300 hover:bg-neutral-200',
             'border-t border-neutral-200',
             'border-t-[1px]',
             'overflow-hidden',
