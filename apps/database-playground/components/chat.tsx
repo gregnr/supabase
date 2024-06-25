@@ -1,13 +1,25 @@
 'use client'
 
 import { Button } from '@ui/components/shadcn/ui/button'
-import { Message, UseChatOptions, nanoid } from 'ai'
-import { useChat } from 'ai/react'
+import { Message, generateId } from 'ai'
+import { UseChatOptions, useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
-import { ArrowDown, ArrowUp, Square } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowDown, ArrowUp, Paperclip, Square } from 'lucide-react'
+import {
+  ChangeEvent,
+  ReactNode,
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { AiIconAnimation } from 'ui'
 import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
+import { saveFile } from '~/lib/files'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
 import ChatMessage from './chat-message'
 
@@ -16,12 +28,12 @@ export function getInitialMessages(tables?: TablesData): Message[] {
     // An artificial tool call containing the DB schema
     // as if it was already called by the LLM
     {
-      id: nanoid(),
+      id: generateId(),
       role: 'assistant',
       content: '',
       toolInvocations: [
         {
-          toolCallId: nanoid(),
+          toolCallId: generateId(),
           toolName: 'getDatabaseSchema',
           args: {},
           result: tables,
@@ -29,6 +41,136 @@ export function getInitialMessages(tables?: TablesData): Message[] {
       ],
     },
   ]
+}
+
+type UseDropZoneOptions = {
+  onDrop?(files: File[]): void
+  cursorElement?: ReactNode
+}
+
+function useDropZone<T extends HTMLElement>({ onDrop, cursorElement }: UseDropZoneOptions = {}) {
+  const [element, setElement] = useState<T>()
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+
+  const ref = useCallback((element: T | null) => {
+    setElement(element ?? undefined)
+  }, [])
+
+  const cursorRef = useRef<HTMLElement>(null)
+
+  const cursor = useMemo(() => {
+    if (!isDraggingOver) {
+      return undefined
+    }
+
+    const clonedCursor =
+      cursorElement && isValidElement<any>(cursorElement)
+        ? cloneElement(cursorElement, {
+            ref: cursorRef,
+            style: {
+              ...cursorElement.props.style,
+              pointerEvents: 'none',
+              position: 'fixed',
+            },
+          })
+        : undefined
+
+    if (!clonedCursor) {
+      return undefined
+    }
+
+    return createPortal(clonedCursor, document.body)
+  }, [cursorElement, isDraggingOver])
+
+  useEffect(() => {
+    function handleDragOver(e: DragEvent) {
+      e.preventDefault()
+
+      const items = e.dataTransfer?.items
+
+      if (items) {
+        const hasFile = Array.from(items).some((item) => item.kind === 'file')
+
+        if (hasFile) {
+          e.dataTransfer.dropEffect = 'copy'
+          setIsDraggingOver(true)
+
+          if (cursorRef.current) {
+            cursorRef.current.style.left = `${e.clientX}px`
+            cursorRef.current.style.top = `${e.clientY}px`
+          }
+        } else {
+          e.dataTransfer.dropEffect = 'none'
+        }
+      }
+    }
+
+    function handleDragLeave() {
+      setIsDraggingOver(false)
+    }
+
+    function handleDrop(e: DragEvent) {
+      e.preventDefault()
+      setIsDraggingOver(false)
+
+      const items = e.dataTransfer?.items
+
+      if (items) {
+        const files = Array.from(items)
+          .map((file) => file.getAsFile())
+          .filter((file): file is File => !!file)
+
+        onDrop?.(files)
+      }
+    }
+
+    if (element) {
+      element.addEventListener('dragover', handleDragOver)
+      element.addEventListener('dragleave', handleDragLeave)
+      element.addEventListener('drop', handleDrop)
+    }
+
+    return () => {
+      element?.removeEventListener('dragover', handleDragOver)
+      element?.removeEventListener('dragleave', handleDragLeave)
+      element?.removeEventListener('drop', handleDrop)
+    }
+  }, [element, cursor, onDrop])
+
+  return { ref, element, isDraggingOver, cursor }
+}
+
+type UseFollowMouseOptions<P extends HTMLElement> = {
+  parentElement?: P
+}
+
+function useFollowMouse<T extends HTMLElement, P extends HTMLElement>({
+  parentElement,
+}: UseFollowMouseOptions<P>) {
+  const [element, setElement] = useState<T>()
+
+  const ref = useCallback((element: T | null) => {
+    setElement(element ?? undefined)
+  }, [])
+
+  useEffect(() => {
+    function handleDragOver(e: DragEvent) {
+      if (element) {
+        element.style.left = `${e.offsetX}px`
+        element.style.top = `${e.offsetY}px`
+      }
+    }
+
+    if (element && parentElement) {
+      parentElement.addEventListener('dragover', handleDragOver)
+    }
+
+    return () => {
+      parentElement?.removeEventListener('dragover', handleDragOver)
+    }
+  }, [element, parentElement])
+
+  return { ref }
 }
 
 export type ChatProps = {
@@ -52,12 +194,73 @@ export default function Chat({ onToolCall }: ChatProps) {
 
   const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll({ enabled: isLoading })
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const nextMessageId = useMemo(() => generateId(), [messages])
+
+  const sendCsv = useCallback(
+    async (file: File) => {
+      const fileId = generateId()
+
+      await saveFile(fileId, file)
+
+      const text = await file.text()
+
+      // Add an artificial tool call requesting the CSV
+      // with the file result all in one operation.
+      append({
+        role: 'assistant',
+        content: '',
+        toolInvocations: [
+          {
+            toolCallId: generateId(),
+            toolName: 'requestCsv',
+            args: {},
+            result: {
+              success: true,
+              fileId: fileId,
+              file: {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                lastModified: file.lastModified,
+              },
+              preview: text.split('\n').slice(0, 4).join('\n').trim(),
+            },
+          },
+        ],
+      })
+    },
+    [append]
+  )
+
+  const {
+    ref: dropZoneRef,
+    isDraggingOver,
+    cursor: dropZoneCursor,
+  } = useDropZone({
+    async onDrop(files) {
+      const [file] = files
+
+      if (file && file.type === 'text/csv') {
+        await sendCsv(file)
+      }
+    },
+    cursorElement: (
+      <m.div
+        layoutId={nextMessageId}
+        className="px-5 py-2.5 text-base rounded-full bg-neutral-100 flex gap-2 items-center shadow-xl z-50"
+      >
+        <Paperclip size={14} /> Add file to chat
+      </m.div>
+    ),
+  })
+
+  const inputRef = useRef<HTMLInputElement>(null)
+
   // Scroll to end when chat is first mounted
   useEffect(() => {
     scrollToEnd('instant')
   }, [scrollToEnd])
-
-  const inputRef = useRef<HTMLInputElement>(null)
 
   // Focus input when LLM starts responding (for cases when it wasn't focused prior)
   useEffect(() => {
@@ -68,27 +271,31 @@ export default function Chat({ onToolCall }: ChatProps) {
 
   const lastMessage = messages.at(-1)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const nextMessageId = useMemo(() => nanoid(), [messages])
-
   return (
-    <div className="h-full flex flex-col items-stretch">
+    <div ref={dropZoneRef} className="h-full flex flex-col items-stretch relative">
+      {isDraggingOver && (
+        <m.div
+          variants={{
+            hidden: { opacity: 0 },
+            show: { opacity: 0.25 },
+          }}
+          initial="hidden"
+          animate="show"
+          className="absolute inset-y-0 -inset-x-2 flex justify-center items-center bg-black rounded-md z-40"
+        />
+      )}
+      {dropZoneCursor}
       <div className="flex-1 relative h-full min-h-0">
         <div className="h-full flex flex-col items-center overflow-y-auto" ref={scrollRef}>
-          {messages.some((message) => message.role === 'user') ? (
+          {messages.length > initialMessages.length ? (
             <div className="flex flex-col gap-4 w-full max-w-4xl p-10">
-              {messages
-                .filter(
-                  (message) =>
-                    message.content ||
-                    // Don't include tool calls that don't have an associated UI
-                    !message.toolInvocations?.every(
-                      (t) => !['generateChart', 'executeSql'].includes(t.toolName)
-                    )
-                )
-                .map((message) => (
-                  <ChatMessage key={message.id} message={message} />
-                ))}
+              {messages.map((message, i) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isLast={i === messages.length - 1}
+                />
+              ))}
               <AnimatePresence>
                 {isLoading && (
                   <m.div
@@ -265,6 +472,39 @@ export default function Chat({ onToolCall }: ChatProps) {
               {input}
             </m.div>
           )}
+          <Button
+            className="w-8 h-8 p-1.5 bg-inherit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+
+              // Create a file input element
+              const fileInput = document.createElement('input')
+              fileInput.type = 'file'
+              fileInput.className = 'hidden'
+
+              // Add an event listener to handle the file selection
+              fileInput.addEventListener('change', async (event) => {
+                const changeEvent = event as unknown as ChangeEvent<HTMLInputElement>
+                const [file] = Array.from(changeEvent.target?.files ?? [])
+
+                if (file && file.type === 'text/csv') {
+                  await sendCsv(file)
+                }
+
+                fileInput.remove()
+              })
+
+              // Add the file input to the body (required for some browsers)
+              document.body.appendChild(fileInput)
+
+              // Trigger the click event on the file input element
+              fileInput.click()
+            }}
+            disabled={isLoading}
+          >
+            <Paperclip size={20} />
+          </Button>
           <input
             ref={inputRef}
             id="input"

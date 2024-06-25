@@ -4,8 +4,7 @@ import 'chartjs-adapter-date-fns'
 
 import { Editor } from '@monaco-editor/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui/components/shadcn/ui/tabs'
-import { UseChatOptions } from 'ai'
-import { useChat } from 'ai/react'
+import { UseChatOptions, useChat } from 'ai/react'
 import { Chart } from 'chart.js'
 import { useBreakpoint } from 'common'
 import { assertDefined } from 'common/sql-util'
@@ -19,6 +18,7 @@ import Chat, { getInitialMessages } from '~/components/chat'
 import SchemaGraph from '~/components/schema/graph'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { db, resetDb } from '~/lib/db'
+import { loadFile } from '~/lib/files'
 import { useLocalStorage } from '~/lib/hooks'
 import { TabValue, tabsSchema } from '~/lib/schema'
 import { groupStatements } from '~/lib/sql-util'
@@ -166,6 +166,32 @@ export default function Page() {
           return {
             success: true,
             message: `The UI successfully switch to the '${tab}' tab. Acknowledge the user's request.`,
+          }
+        }
+        case 'importCsv': {
+          const { fileId, sql } = toolCall.args as any
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileId}.csv`
+
+          try {
+            const file = await loadFile(fileId)
+            const csv = await file.text()
+
+            await db.writeFile(tempFile, csv.trim())
+            await db.exec(sql)
+            await db.removeFile(tempFile)
+            await refetch()
+
+            return {
+              success: true,
+              message: 'The CSV has been imported successfully.',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              message: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
           }
         }
       }

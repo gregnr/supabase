@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai'
-import { convertToCoreMessages, streamText } from 'ai'
+import { ToolInvocation, convertToCoreMessages, streamText } from 'ai'
 import { codeBlock } from 'common-tags'
 import { z } from 'zod'
 import { reportSchema, tabsSchema } from '~/lib/schema'
@@ -7,8 +7,29 @@ import { reportSchema, tabsSchema } from '~/lib/schema'
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
 
+type FileData = {
+  type: 'file'
+  file: {
+    id: string
+    type: string
+    name: string
+    size: number
+    lastModified: number
+    text: string
+  }
+}
+
+type Data = FileData
+
+type Message = {
+  role: 'user' | 'assistant'
+  content: string
+  data?: Data
+  toolInvocations?: (ToolInvocation & { result: any })[]
+}
+
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  const { messages }: { messages: Message[] } = await req.json()
 
   const result = await streamText({
     system: codeBlock`
@@ -22,6 +43,8 @@ export async function POST(req: Request) {
       When creating sample data:
       - Make the data realistic, including joined data
       - Check for existing records/conflicts in the table
+
+      When querying data, limit to 5 by default.
       
       You also know math. All math equations and expressions must be written in KaTex and must be wrapped in double dollar \`$$\`:
         - Inline: $$\\sqrt{26}$$
@@ -30,7 +53,7 @@ export async function POST(req: Request) {
             \\sqrt{26}
             $$
 
-      No images are allowed. Do not try to link images.
+      No images are allowed. Do not try to generate or link images.
 
       Err on the side of caution. Ask the user to confirm before any mutating operations.
       
@@ -79,6 +102,28 @@ export async function POST(req: Request) {
         `,
         parameters: z.object({
           tab: tabsSchema,
+        }),
+      },
+      requestCsv: {
+        description: codeBlock`
+          Requests a CSV upload from the user.
+        `,
+        parameters: z.object({}),
+      },
+      importCsv: {
+        description: codeBlock`
+          Imports a CSV file with the specified ID into a table. Call \`requestCsv\` first.
+          
+          Check if any existing tables can import this or
+          otherwise create new table using \`executeSql\` first.
+        `,
+        parameters: z.object({
+          fileId: z.string().describe('The ID of the CSV file to import'),
+          sql: z.string().describe(codeBlock`
+            The Postgres COPY command to import the CSV into the table.
+
+            The file will be temporarily available on the server at '/tmp/{id}.csv'.
+          `),
         }),
       },
     },
