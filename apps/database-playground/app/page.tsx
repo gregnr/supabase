@@ -4,7 +4,8 @@ import 'chartjs-adapter-date-fns'
 
 import { Editor } from '@monaco-editor/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui/components/shadcn/ui/tabs'
-import { UseChatOptions, useChat } from 'ai/react'
+import { generateId } from 'ai'
+import { useChat } from 'ai/react'
 import { Chart } from 'chart.js'
 import { useBreakpoint } from 'common'
 import { assertDefined } from 'common/sql-util'
@@ -18,18 +19,16 @@ import Chat, { getInitialMessages } from '~/components/chat'
 import SchemaGraph from '~/components/schema/graph'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { db, resetDb } from '~/lib/db'
-import { loadFile } from '~/lib/files'
+import { loadFile, saveFile } from '~/lib/files'
 import { useLocalStorage } from '~/lib/hooks'
 import { TabValue, tabsSchema } from '~/lib/schema'
 import { groupStatements } from '~/lib/sql-util'
+import { OnToolCall } from '~/lib/tools'
 
 const loadFramerFeatures = () => import('./framer-features').then((res) => res.default)
 
 const initialMigrationSql = '-- Migrations will appear here as you chat with Supabase AI\n'
 const initialSeedSql = '-- Seeds will appear here as you chat with Supabase AI\n'
-
-type Defined<T> = T extends undefined ? never : T
-type OnToolCall = Defined<UseChatOptions['onToolCall']>
 
 export default function Page() {
   const [tab, setTab] = useState<TabValue>('diagram')
@@ -37,7 +36,7 @@ export default function Page() {
   const [migrationSql, setMigrationSql] = useLocalStorage('migrations', initialMigrationSql)
   const [seedSql, setSeedSql] = useLocalStorage('seeds', initialSeedSql)
 
-  const { data: tables, refetch } = useTablesQuery({ schemas: ['public'], includeColumns: true })
+  const { refetch } = useTablesQuery({ schemas: ['public'], includeColumns: true })
 
   const isSmallBreakpoint = useBreakpoint('lg')
 
@@ -56,7 +55,6 @@ export default function Page() {
 
   const onToolCall = useCallback<OnToolCall>(
     async ({ toolCall }) => {
-      console.log('tool call', toolCall)
       switch (toolCall.toolName) {
         case 'getDatabaseSchema': {
           const { data: tables, error } = await refetch()
@@ -66,7 +64,10 @@ export default function Page() {
             throw error
           }
 
-          return tables
+          return {
+            success: true,
+            tables,
+          }
         }
         case 'brainstormReports': {
           return {
@@ -76,7 +77,7 @@ export default function Page() {
         }
         case 'executeSql': {
           try {
-            const { sql } = toolCall.args as any
+            const { sql } = toolCall.args
 
             const parseResult = await parseQuery(sql)
 
@@ -134,6 +135,7 @@ export default function Page() {
           }
         }
         case 'generateChart': {
+          // TODO: correct zod schema for Chart.js `config`
           const { config } = toolCall.args as any
 
           // Validate that the chart can be rendered without error
@@ -159,7 +161,7 @@ export default function Page() {
           }
         }
         case 'switchTab': {
-          const { tab } = toolCall.args as any
+          const { tab } = toolCall.args
 
           setTab(tab)
 
@@ -169,7 +171,7 @@ export default function Page() {
           }
         }
         case 'importCsv': {
-          const { fileId, sql } = toolCall.args as any
+          const { fileId, sql } = toolCall.args
 
           // Temporary file in the DB's virtual FS
           const tempFile = `/tmp/${fileId}.csv`
@@ -190,7 +192,38 @@ export default function Page() {
           } catch (error) {
             return {
               success: false,
-              message: error instanceof Error ? error.message : 'An unknown error has occurred',
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
+          }
+        }
+        case 'exportCsv': {
+          const { fileName, sql } = toolCall.args
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileName}`
+          const fileId = generateId()
+
+          try {
+            await db.exec(sql)
+            const data = await db.readFile(tempFile)
+            await db.removeFile(tempFile)
+            const file = new File([data], fileName, { type: 'text/csv' })
+            await saveFile(fileId, file)
+
+            return {
+              success: true,
+              message: 'The query as been successfully exported as a CSV. Do not link to it.',
+              fileId,
+              file: {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              },
+            }
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
             }
           }
         }

@@ -2,7 +2,7 @@
 
 import { Button } from '@ui/components/shadcn/ui/button'
 import { Message, generateId } from 'ai'
-import { UseChatOptions, useChat } from 'ai/react'
+import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import { ArrowDown, ArrowUp, Paperclip, Square } from 'lucide-react'
 import {
@@ -21,6 +21,7 @@ import { AiIconAnimation } from 'ui'
 import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
 import { saveFile } from '~/lib/files'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
+import { OnToolCall } from '~/lib/tools'
 import ChatMessage from './chat-message'
 
 export function getInitialMessages(tables?: TablesData): Message[] {
@@ -174,7 +175,7 @@ function useFollowMouse<T extends HTMLElement, P extends HTMLElement>({
 }
 
 export type ChatProps = {
-  onToolCall: UseChatOptions['onToolCall']
+  onToolCall: OnToolCall
 }
 
 export default function Chat({ onToolCall }: ChatProps) {
@@ -188,7 +189,7 @@ export default function Chat({ onToolCall }: ChatProps) {
     id: 'main',
     api: 'api/chat',
     maxToolRoundtrips: 10,
-    onToolCall,
+    onToolCall: onToolCall as any, // our `OnToolCall` type is more specific then `ai` SDK's
     initialMessages,
   })
 

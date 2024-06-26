@@ -1,8 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { ToolInvocation, convertToCoreMessages, streamText } from 'ai'
 import { codeBlock } from 'common-tags'
-import { z } from 'zod'
-import { reportSchema, tabsSchema } from '~/lib/schema'
+import { convertToCoreTools, tools } from '~/lib/tools'
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
@@ -63,70 +62,7 @@ export async function POST(req: Request) {
     `,
     model: openai('gpt-4o-2024-05-13'),
     messages: convertToCoreMessages(messages),
-    tools: {
-      getDatabaseSchema: {
-        description:
-          'Gets all table and column data within the public schema in the Postgres database.',
-        parameters: z.object({}),
-      },
-      executeSql: {
-        description:
-          "Executes Postgres SQL against the user's database. Perform joins automatically. Always add limits for safety.",
-        parameters: z.object({ sql: z.string() }),
-      },
-      brainstormReports: {
-        description: 'Brainstorms some interesting reports to show to the user.',
-        parameters: z.object({
-          reports: z.array(reportSchema),
-        }),
-      },
-      generateChart: {
-        description: codeBlock`
-          Generates a chart using Chart.js for a given SQL query.
-          - Label both axises
-          - Plugins are not available
-          
-          Call \`executeSql\` first.
-        `,
-        parameters: z.object({
-          config: z
-            .any()
-            .describe(
-              'The `config` passed to `new Chart(ctx, config). Includes `type`, `data`, `options`, etc.'
-            ),
-        }),
-      },
-      switchTab: {
-        description: codeBlock`
-          Switches to a different tab.
-        `,
-        parameters: z.object({
-          tab: tabsSchema,
-        }),
-      },
-      requestCsv: {
-        description: codeBlock`
-          Requests a CSV upload from the user.
-        `,
-        parameters: z.object({}),
-      },
-      importCsv: {
-        description: codeBlock`
-          Imports a CSV file with the specified ID into a table. Call \`requestCsv\` first.
-          
-          Check if any existing tables can import this or
-          otherwise create new table using \`executeSql\` first.
-        `,
-        parameters: z.object({
-          fileId: z.string().describe('The ID of the CSV file to import'),
-          sql: z.string().describe(codeBlock`
-            The Postgres COPY command to import the CSV into the table.
-
-            The file will be temporarily available on the server at '/tmp/{id}.csv'.
-          `),
-        }),
-      },
-    },
+    tools: convertToCoreTools(tools),
   })
 
   return result.toAIStreamResponse()
