@@ -194,7 +194,7 @@ export default function Chat({ onToolCall }: ChatProps) {
     initialMessages,
   })
 
-  const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll({ enabled: isLoading })
+  const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const nextMessageId = useMemo(() => generateId(), [messages])
@@ -261,7 +261,7 @@ export default function Chat({ onToolCall }: ChatProps) {
 
   // Scroll to end when chat is first mounted
   useEffect(() => {
-    scrollToEnd('instant')
+    scrollToEnd()
   }, [scrollToEnd])
 
   // Focus input when LLM starts responding (for cases when it wasn't focused prior)
@@ -288,7 +288,7 @@ export default function Chat({ onToolCall }: ChatProps) {
 
       // Scroll to bottom after the message has rendered
       setTimeout(() => {
-        scrollToEnd('smooth')
+        scrollToEnd()
       }, 0)
     },
     [append, nextMessageId, input, setInput, scrollToEnd]
@@ -446,7 +446,7 @@ export default function Chat({ onToolCall }: ChatProps) {
               <Button
                 className="rounded-full w-8 h-8 p-1.5 text-neutral-50 bg-neutral-900"
                 onClick={() => {
-                  scrollToEnd(isLoading ? 'instant' : 'smooth')
+                  scrollToEnd()
                   inputRef.current?.focus()
                 }}
               >
