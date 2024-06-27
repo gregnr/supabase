@@ -1,4 +1,4 @@
-import { PGliteWorker } from '@gregnr/pglite/worker'
+import { PGliteWorker } from '@electric-sql/pglite/worker'
 import { nanoid } from 'ai'
 
 // React's `useEffect` double-rendering in dev mode causes pglite errors
