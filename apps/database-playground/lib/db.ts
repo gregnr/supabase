@@ -1,5 +1,5 @@
 import { PGliteWorker } from '@electric-sql/pglite/worker'
-import { nanoid } from 'ai'
+import { generateId } from 'ai'
 
 // React's `useEffect` double-rendering in dev mode causes pglite errors
 // Temp: storing singleton instance in module scope
@@ -33,7 +33,7 @@ export function getDbId() {
 }
 
 export function newDbId() {
-  const dbId = nanoid()
+  const dbId = generateId()
 
   if (typeof window !== 'undefined') {
     window.localStorage.setItem('current-db-id', dbId)
