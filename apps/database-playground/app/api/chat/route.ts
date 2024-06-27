@@ -32,7 +32,9 @@ export async function POST(req: Request) {
 
   const result = await streamText({
     system: codeBlock`
-      You are a helpful database assistant. Under the hood you have access to a Postgres database.
+      You are a helpful database assistant. Under the hood you have access to an in-browser Postgres database called PGlite (https://github.com/electric-sql/pglite).
+      Some special notes about this database:
+      - foreign data wrappers are not supported
 
       When generating tables, do the following:
       - For primary keys, always use "id bigint primary key generated always as identity" (not serial)
