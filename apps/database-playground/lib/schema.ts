@@ -79,5 +79,5 @@ export type Results = z.infer<typeof resultsSchema>
 export const reportSchema = z.object({ name: z.string(), description: z.string() })
 export type Report = z.infer<typeof reportSchema>
 
-export const tabsSchema = z.enum(['chat', 'diagram', 'migrations', 'seeds', 'settings'])
+export const tabsSchema = z.enum(['chat', 'diagram', 'migrations', 'settings'])
 export type TabValue = z.infer<typeof tabsSchema>

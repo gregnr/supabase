@@ -1,50 +1,25 @@
-import { Statement, assertDefined, unwrapNode, unwrapOneOfNode } from 'common/sql-util'
+import { unwrapNode, unwrapOneOfNode } from 'common/sql-util'
 import { Node, RawStmt } from 'libpg-query/wasm'
 
-/**
- * Groups SQL statements into queries, seeds, and migrations
- * based on heuristics.
- */
-export function groupStatements(rawStatements: RawStmt[]) {
-  return rawStatements.reduce<{
-    queries: Statement[]
-    seeds: Statement[]
-    migrations: Statement[]
-  }>(
-    (merged, stmt) => {
-      assertDefined(stmt.stmt, 'Expected statement to exist')
+export function isQueryStatement(stmt: RawStmt) {
+  return stmt.stmt && unwrapQueryStatement(stmt.stmt) !== undefined
+}
 
-      const queryStatement = unwrapQueryStatement(stmt.stmt)
+export function isSeedStatement(stmt: RawStmt) {
+  return stmt.stmt && unwrapSeedStatement(stmt.stmt) !== undefined
+}
 
-      if (queryStatement) {
-        return {
-          ...merged,
-          queries: [...merged.queries, queryStatement],
-        }
-      }
+export function isMigrationStatement(stmt: RawStmt) {
+  return stmt.stmt && unwrapMigrationStatement(stmt.stmt) !== undefined
+}
 
-      const seedStatement = unwrapSeedStatement(stmt.stmt)
+export function unwrapQueryStatement(node: Node) {
+  // Select statements are considered queries if they don't insert into another table
+  const selectStatement = unwrapNode(node, 'SelectStmt')
 
-      if (seedStatement) {
-        return {
-          ...merged,
-          seeds: [...merged.seeds, seedStatement],
-        }
-      }
-
-      const migrationStatement = unwrapMigrationStatement(stmt.stmt)
-
-      if (migrationStatement) {
-        return {
-          ...merged,
-          migrations: [...merged.migrations, stmt.stmt],
-        }
-      }
-
-      throw new Error('Unsupported SQL statement')
-    },
-    { queries: [], seeds: [], migrations: [] }
-  )
+  if (selectStatement && !selectStatement.intoClause) {
+    return selectStatement
+  }
 }
 
 export function unwrapSeedStatement(node: Node) {
@@ -59,15 +34,6 @@ export function unwrapSeedStatement(node: Node) {
   const selectStatement = unwrapNode(node, 'SelectStmt')
 
   if (selectStatement?.intoClause) {
-    return selectStatement
-  }
-}
-
-export function unwrapQueryStatement(node: Node) {
-  // Select statements are considered queries if they don't insert into another table
-  const selectStatement = unwrapNode(node, 'SelectStmt')
-
-  if (selectStatement && !selectStatement.intoClause) {
     return selectStatement
   }
 }

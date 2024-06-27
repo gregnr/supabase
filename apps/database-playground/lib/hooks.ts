@@ -223,3 +223,45 @@ export function useAutoScroll({ enabled = true }: UseAutoScrollProps = {}) {
 
   return { ref, isSticky, scrollToEnd }
 }
+
+export function useAsyncMemo<T>(
+  asyncFunction: () => Promise<T>,
+  dependencies: React.DependencyList,
+  initialValue: T | undefined = undefined
+) {
+  const [value, setValue] = useState<T | undefined>(initialValue)
+  const [error, setError] = useState<Error | undefined>(undefined)
+  const [loading, setLoading] = useState<boolean>(true)
+
+  const hasBeenCancelled = useRef(false)
+
+  useEffect(() => {
+    hasBeenCancelled.current = false
+    setLoading(true)
+
+    asyncFunction()
+      .then((result) => {
+        if (!hasBeenCancelled.current) {
+          setValue(result)
+          setError(undefined)
+        }
+      })
+      .catch((err) => {
+        if (!hasBeenCancelled.current) {
+          setError(err)
+        }
+      })
+      .finally(() => {
+        if (!hasBeenCancelled.current) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      hasBeenCancelled.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, dependencies)
+
+  return { value, error, loading }
+}

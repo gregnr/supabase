@@ -10,7 +10,7 @@ import { Chart } from 'chart.js'
 import { useBreakpoint } from 'common'
 import { assertDefined } from 'common/sql-util'
 import { LazyMotion } from 'framer-motion'
-import { parseQuery } from 'libpg-query/wasm'
+import { deparse, parseQuery, ParseResult } from 'libpg-query/wasm'
 import { FileCode, MessageSquareMore, Settings, Sprout, Workflow } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { format } from 'sql-formatter'
@@ -20,10 +20,10 @@ import SchemaGraph from '~/components/schema/graph'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { db, resetDb } from '~/lib/db'
 import { loadFile, saveFile } from '~/lib/files'
-import { useLocalStorage } from '~/lib/hooks'
-import { TabValue, tabsSchema } from '~/lib/schema'
-import { groupStatements } from '~/lib/sql-util'
-import { OnToolCall } from '~/lib/tools'
+import { useAsyncMemo } from '~/lib/hooks'
+import { tabsSchema, TabValue } from '~/lib/schema'
+import { isMigrationStatement } from '~/lib/sql-util'
+import { OnToolCall, ToolInvocation } from '~/lib/tools'
 
 const loadFramerFeatures = () => import('./framer-features').then((res) => res.default)
 
@@ -32,9 +32,6 @@ const initialSeedSql = '-- Seeds will appear here as you chat with Supabase AI\n
 
 export default function Page() {
   const [tab, setTab] = useState<TabValue>('diagram')
-
-  const [migrationSql, setMigrationSql] = useLocalStorage('migrations', initialMigrationSql)
-  const [seedSql, setSeedSql] = useLocalStorage('seeds', initialSeedSql)
 
   const { refetch } = useTablesQuery({ schemas: ['public'], includeColumns: true })
 
@@ -48,10 +45,60 @@ export default function Page() {
     }
   }, [isSmallBreakpoint])
 
-  const { setMessages } = useChat({
+  const { messages, setMessages } = useChat({
     id: 'main',
     api: 'api/chat',
   })
+
+  const { value: migrationStatements } = useAsyncMemo(async () => {
+    const sqlExecutions = messages
+      .flatMap((message) => {
+        if (!message.toolInvocations) {
+          return
+        }
+
+        const toolInvocations = message.toolInvocations as ToolInvocation[]
+
+        return toolInvocations
+          .map((tool) =>
+            // Only include SQL that successfully executed against the DB
+            tool.toolName === 'executeSql' && 'result' in tool && tool.result.success === true
+              ? tool.args.sql
+              : undefined
+          )
+          .filter((sql) => sql !== undefined)
+      })
+      .filter((sql) => sql !== undefined)
+
+    const migrations: string[] = []
+
+    for (const sql of sqlExecutions) {
+      const parseResult = await parseQuery(sql)
+      assertDefined(parseResult.stmts, 'Expected stmts to exist in parse result')
+
+      const migrationStmts = parseResult.stmts.filter(isMigrationStatement)
+
+      if (migrationStmts.length > 0) {
+        const filteredAst: ParseResult = {
+          version: parseResult.version,
+          stmts: migrationStmts,
+        }
+
+        const migrationSql = await deparse(filteredAst)
+
+        const formattedSql = format(migrationSql, {
+          language: 'postgresql',
+          keywordCase: 'lower',
+        })
+
+        const withSemicolon = formattedSql.endsWith(';') ? formattedSql : `${formattedSql};`
+
+        migrations.push(withSemicolon)
+      }
+    }
+
+    return migrations
+  }, [messages])
 
   const onToolCall = useCallback<OnToolCall>(
     async ({ toolCall }) => {
@@ -79,40 +126,7 @@ export default function Page() {
           try {
             const { sql } = toolCall.args
 
-            const parseResult = await parseQuery(sql)
-
-            assertDefined(parseResult.stmts, 'Expected parse result to contain statements')
-
-            const { seeds, migrations } = groupStatements(parseResult.stmts)
-
             const results = await db.exec(sql)
-
-            // TODO: use libpg-query de-parser once released
-            // This assumes every statement is a seed or migration,
-            // which might not be true
-            if (seeds.length > 0) {
-              setSeedSql((s) => {
-                const newSql = (s + '\n' + sql).trim()
-                return format(newSql, {
-                  language: 'postgresql',
-                  keywordCase: 'lower',
-                  identifierCase: 'lower',
-                  dataTypeCase: 'lower',
-                  functionCase: 'lower',
-                })
-              })
-            } else if (migrations.length > 0) {
-              setMigrationSql((s) => {
-                const newSql = (s + '\n' + sql).trim()
-                return format(newSql, {
-                  language: 'postgresql',
-                  keywordCase: 'lower',
-                  identifierCase: 'lower',
-                  dataTypeCase: 'lower',
-                  functionCase: 'lower',
-                })
-              })
-            }
 
             const { data: tables, error } = await refetch()
 
@@ -255,10 +269,13 @@ export default function Page() {
               <FileCode size={14} />
               <span className="hidden xs:inline">Migrations</span>
             </TabsTrigger>
-            <TabsTrigger value="seeds" className="flex items-center gap-1">
-              <Sprout size={14} />
-              <span className="hidden xs:inline">Seeds</span>
-            </TabsTrigger>
+            {/* Temporarily hide seeds until we get pg_dump working */}
+            {false && (
+              <TabsTrigger value="seeds" className="flex items-center gap-1">
+                <Sprout size={14} />
+                <span className="hidden xs:inline">Seeds</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="settings" className="flex items-center gap-1">
               <Settings size={14} />
               <span className="hidden xs:inline">Settings</span>
@@ -276,7 +293,7 @@ export default function Page() {
           <TabsContent value="migrations" className="h-full py-4 rounded-md bg-[#1e1e1e]">
             <Editor
               language="pgsql"
-              value={migrationSql}
+              value={initialMigrationSql + '\n' + migrationStatements?.join('\n\n')}
               theme="vs-dark"
               options={{
                 tabSize: 2,
@@ -314,54 +331,54 @@ export default function Page() {
               }}
             />
           </TabsContent>
-          <TabsContent value="seeds" className="h-full py-4 rounded-md bg-[#1e1e1e]">
-            <Editor
-              language="pgsql"
-              value={seedSql}
-              theme="vs-dark"
-              options={{
-                tabSize: 2,
-                minimap: {
-                  enabled: false,
-                },
-                fontSize: 13,
-                readOnly: true,
-              }}
-              onMount={async (editor, monaco) => {
-                // Register pgsql formatter
-                monaco.languages.registerDocumentFormattingEditProvider('pgsql', {
-                  async provideDocumentFormattingEdits(model) {
-                    const currentCode = editor.getValue()
-                    const formattedCode = format(currentCode, {
-                      language: 'postgresql',
-                      keywordCase: 'lower',
-                    })
-                    return [
-                      {
-                        range: model.getFullModelRange(),
-                        text: formattedCode,
-                      },
-                    ]
+          {/* Temporarily hide seeds until we get pg_dump working */}
+          {false && (
+            <TabsContent value="seeds" className="h-full py-4 rounded-md bg-[#1e1e1e]">
+              <Editor
+                language="pgsql"
+                theme="vs-dark"
+                options={{
+                  tabSize: 2,
+                  minimap: {
+                    enabled: false,
                   },
-                })
+                  fontSize: 13,
+                  readOnly: true,
+                }}
+                onMount={async (editor, monaco) => {
+                  // Register pgsql formatter
+                  monaco.languages.registerDocumentFormattingEditProvider('pgsql', {
+                    async provideDocumentFormattingEdits(model) {
+                      const currentCode = editor.getValue()
+                      const formattedCode = format(currentCode, {
+                        language: 'postgresql',
+                        keywordCase: 'lower',
+                      })
+                      return [
+                        {
+                          range: model.getFullModelRange(),
+                          text: formattedCode,
+                        },
+                      ]
+                    },
+                  })
 
-                // Format on cmd+s
-                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+                  // Format on cmd+s
+                  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+                    await editor.getAction('editor.action.formatDocument').run()
+                  })
+
+                  // Run format on the initial value
                   await editor.getAction('editor.action.formatDocument').run()
-                })
-
-                // Run format on the initial value
-                await editor.getAction('editor.action.formatDocument').run()
-              }}
-            />
-          </TabsContent>
+                }}
+              />
+            </TabsContent>
+          )}
           <TabsContent value="settings" className="h-full">
             <Button
               onClick={async () => {
                 await resetDb()
                 const { data: tables } = await refetch()
-                setSeedSql(initialSeedSql)
-                setMigrationSql(initialMigrationSql)
                 setTab('diagram')
                 setMessages(getInitialMessages(tables))
               }}
