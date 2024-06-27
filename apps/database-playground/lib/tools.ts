@@ -64,7 +64,11 @@ export const tools = {
     `,
     args: z.object({
       config: z
-        .record(z.string(), z.any())
+        .object({
+          type: z.any(),
+          data: z.any(),
+          options: z.any(),
+        })
         .describe(
           'The `config` passed to `new Chart(ctx, config). Includes `type`, `data`, `options`, etc.'
         ),
