@@ -7,6 +7,7 @@ import { AnimatePresence, m } from 'framer-motion'
 import { ArrowDown, ArrowUp, Paperclip, Square } from 'lucide-react'
 import {
   ChangeEvent,
+  FormEventHandler,
   ReactNode,
   cloneElement,
   isValidElement,
@@ -256,7 +257,7 @@ export default function Chat({ onToolCall }: ChatProps) {
     ),
   })
 
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Scroll to end when chat is first mounted
   useEffect(() => {
@@ -271,6 +272,27 @@ export default function Chat({ onToolCall }: ChatProps) {
   }, [isLoading])
 
   const lastMessage = messages.at(-1)
+
+  const handleFormSubmit: FormEventHandler = useCallback(
+    (e) => {
+      // Manually manage message submission so that we can control its ID
+      // We want to control the ID so that we can perform layout animations via `layoutId`
+      // (see hidden dummy message above)
+      e.preventDefault()
+      append({
+        id: nextMessageId,
+        role: 'user',
+        content: input,
+      })
+      setInput('')
+
+      // Scroll to bottom after the message has rendered
+      setTimeout(() => {
+        scrollToEnd('smooth')
+      }, 0)
+    },
+    [append, nextMessageId, input, setInput, scrollToEnd]
+  )
 
   return (
     <div ref={dropZoneRef} className="h-full flex flex-col items-stretch relative">
@@ -436,24 +458,8 @@ export default function Chat({ onToolCall }: ChatProps) {
       </div>
       <div className="flex flex-col items-center gap-2 pb-2 relative">
         <form
-          className="flex items-center py-2 px-3 rounded-full bg-neutral-100 w-full max-w-4xl"
-          onSubmit={(e) => {
-            // Manually manage message submission so that we can control its ID
-            // We want to control the ID so that we can perform layout animations via `layoutId`
-            // (see hidden dummy message above)
-            e.preventDefault()
-            append({
-              id: nextMessageId,
-              role: 'user',
-              content: input,
-            })
-            setInput('')
-
-            // Scroll to bottom after the message has rendered
-            setTimeout(() => {
-              scrollToEnd('smooth')
-            }, 0)
-          }}
+          className="flex items-end py-2 px-3 rounded-[28px] bg-neutral-100 w-full max-w-4xl"
+          onSubmit={handleFormSubmit}
         >
           {/*
            * This is a hidden dummy message acting as an animation anchor
@@ -474,7 +480,7 @@ export default function Chat({ onToolCall }: ChatProps) {
             </m.div>
           )}
           <Button
-            className="w-8 h-8 p-1.5 bg-inherit"
+            className="w-8 h-8 p-1.5 my-1 bg-inherit"
             type="button"
             onClick={(e) => {
               e.preventDefault()
@@ -506,19 +512,32 @@ export default function Chat({ onToolCall }: ChatProps) {
           >
             <Paperclip size={20} />
           </Button>
-          <input
+          <textarea
             ref={inputRef}
             id="input"
             name="prompt"
             autoComplete="off"
-            className="flex-grow border-none focus-visible:ring-0 text-base bg-inherit placeholder:text-neutral-400"
+            className="flex-grow border-none focus-visible:ring-0 text-base bg-inherit placeholder:text-neutral-400 resize-none"
             value={input}
             onChange={handleInputChange}
             placeholder="Message Supabase AI"
             autoFocus
+            rows={Math.min(input.split('\n').length, 10)}
+            onKeyDown={(e) => {
+              if (!(e.target instanceof HTMLTextAreaElement)) {
+                return
+              }
+
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                if (!isLoading && !!input.trim()) {
+                  handleFormSubmit(e)
+                }
+              }
+            }}
           />
           <Button
-            className="rounded-full w-8 h-8 p-1.5 text-neutral-50 bg-neutral-800"
+            className="rounded-full w-8 h-8 p-1.5 my-1 text-neutral-50 bg-neutral-800"
             type="submit"
             onClick={(e) => {
               if (isLoading) {
@@ -526,7 +545,7 @@ export default function Chat({ onToolCall }: ChatProps) {
                 stop()
               }
             }}
-            disabled={!isLoading && !input}
+            disabled={!isLoading && !input.trim()}
           >
             {isLoading ? (
               <Square fill="white" strokeWidth={0} className="w-3.5 h-3.5" />

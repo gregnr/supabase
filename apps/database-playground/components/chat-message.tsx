@@ -35,7 +35,7 @@ function ChatMessage({ message }: ChatMessageProps) {
           }}
           initial="hidden"
           animate="show"
-          className="self-end px-5 py-2.5 text-base rounded-full bg-neutral-100"
+          className="self-end px-5 py-2.5 text-base rounded-3xl bg-neutral-100 whitespace-pre-wrap"
         >
           {message.content}
         </m.div>
