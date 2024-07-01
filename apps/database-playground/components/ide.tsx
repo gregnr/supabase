@@ -74,6 +74,9 @@ export default function IDE({ children, databaseId }: IDEProps) {
         const formattedSql = format(migrationSql, {
           language: 'postgresql',
           keywordCase: 'lower',
+          identifierCase: 'lower',
+          dataTypeCase: 'lower',
+          functionCase: 'lower',
         })
 
         const withSemicolon = formattedSql.endsWith(';') ? formattedSql : `${formattedSql};`
@@ -84,6 +87,8 @@ export default function IDE({ children, databaseId }: IDEProps) {
 
     return migrations
   }, [messages])
+
+  const migrationsSql = (initialMigrationSql + '\n' + migrationStatements?.join('\n\n')).trim()
 
   return (
     <Tabs
@@ -126,7 +131,7 @@ export default function IDE({ children, databaseId }: IDEProps) {
       <TabsContent value="migrations" className="h-full py-4 rounded-md bg-[#1e1e1e]">
         <Editor
           language="pgsql"
-          value={initialMigrationSql + '\n' + migrationStatements?.join('\n\n')}
+          value={migrationsSql}
           theme="vs-dark"
           options={{
             tabSize: 2,

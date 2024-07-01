@@ -1,5 +1,6 @@
 import { UseQueryOptions, useQuery } from '@tanstack/react-query'
 import { Message } from 'ai'
+import { codeBlock } from 'common-tags'
 import { getMetaDb } from '~/lib/db'
 
 export const useMessagesQuery = (
@@ -12,7 +13,10 @@ export const useMessagesQuery = (
     queryFn: async () => {
       const metaDb = await getMetaDb()
       const { rows: messages } = await metaDb.query<Message>(
-        'select * from messages where database_id = $1',
+        codeBlock`
+          select id, role, content, tool_invocations as "toolInvocations", created_at as "createdAt"
+          from messages where database_id = $1
+        `,
         [databaseId]
       )
       return messages
