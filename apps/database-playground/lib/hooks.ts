@@ -1,22 +1,28 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { nanoid } from 'ai'
+import { generateId, nanoid } from 'ai'
 import { useChat } from 'ai/react'
+import { Chart } from 'chart.js'
 import { codeBlock } from 'common-tags'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
+import { getDatabase } from './db'
+import { loadFile, saveFile } from './files'
 import { SmoothScroller } from './smooth-scroller'
+import { OnToolCall } from './tools'
 
 export type UseReportSuggestionsOptions = {
+  databaseId: string
   enabled?: boolean
 }
 
-export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOptions = {}) {
-  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
+export function useReportSuggestions({ databaseId, enabled = true }: UseReportSuggestionsOptions) {
+  const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
   const [reports, setReports] = useState<Report[]>()
 
   const { append, setMessages } = useChat({
-    api: 'api/chat',
+    id: databaseId,
+    api: '/api/chat',
     async onToolCall({ toolCall }) {
       switch (toolCall.toolName) {
         case 'brainstormReports': {
@@ -264,4 +270,145 @@ export function useAsyncMemo<T>(
   }, dependencies)
 
   return { value, error, loading }
+}
+
+export function useOnToolCall(databaseId: string) {
+  const { refetch: refetchTables } = useTablesQuery({ databaseId, schemas: ['public'] })
+
+  return useCallback<OnToolCall>(
+    async ({ toolCall }) => {
+      const db = await getDatabase(databaseId)
+
+      switch (toolCall.toolName) {
+        case 'getDatabaseSchema': {
+          const { data: tables, error } = await refetchTables()
+
+          // TODO: handle this error in the UI
+          if (error) {
+            throw error
+          }
+
+          return {
+            success: true,
+            tables,
+          }
+        }
+        case 'brainstormReports': {
+          return {
+            success: true,
+            message: 'Reports have been brainstormed. Relay this info to the user.',
+          }
+        }
+        case 'executeSql': {
+          try {
+            const { sql } = toolCall.args
+
+            const results = await db.exec(sql)
+
+            const { data: tables, error } = await refetchTables()
+
+            // TODO: handle this error in the UI
+            if (error) {
+              throw error
+            }
+
+            return {
+              success: true,
+              queryResults: results,
+              updatedSchema: tables,
+            }
+          } catch (err) {
+            if (err instanceof Error) {
+              return { success: false, error: err.message }
+            }
+            throw err
+          }
+        }
+        case 'generateChart': {
+          // TODO: correct zod schema for Chart.js `config`
+          const { config } = toolCall.args as any
+
+          // Validate that the chart can be rendered without error
+          const canvas = document.createElement('canvas', {})
+          canvas.className = 'invisible'
+          document.body.appendChild(canvas)
+
+          try {
+            const chart = new Chart(canvas, config)
+            chart.destroy()
+            return {
+              success: true,
+              message:
+                "The chart has been generated and displayed to the user above. Acknowledge the user's request.",
+            }
+          } catch (err) {
+            if (err instanceof Error) {
+              return { success: false, error: err.message }
+            }
+            throw err
+          } finally {
+            canvas.remove()
+          }
+        }
+        case 'importCsv': {
+          const { fileId, sql } = toolCall.args
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileId}.csv`
+
+          try {
+            const file = await loadFile(fileId)
+            const csv = await file.text()
+
+            await db.writeFile(tempFile, csv.trim())
+            await db.exec(sql)
+            await db.removeFile(tempFile)
+            await refetchTables()
+
+            return {
+              success: true,
+              message: 'The CSV has been imported successfully.',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
+          }
+        }
+        case 'exportCsv': {
+          const { fileName, sql } = toolCall.args
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileName}`
+          const fileId = generateId()
+
+          try {
+            await db.exec(sql)
+            const data = await db.readFile(tempFile)
+            await db.removeFile(tempFile)
+            const file = new File([data], fileName, { type: 'text/csv' })
+            await saveFile(fileId, file)
+
+            return {
+              success: true,
+              message: 'The query as been successfully exported as a CSV. Do not link to it.',
+              fileId,
+              file: {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              },
+            }
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
+          }
+        }
+      }
+    },
+    [refetchTables, databaseId]
+  )
 }

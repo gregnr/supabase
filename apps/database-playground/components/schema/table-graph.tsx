@@ -20,7 +20,13 @@ import { useDebounce } from '~/lib/hooks'
 import SchemaGraphLegend from './legend'
 import { TABLE_NODE_ROW_HEIGHT, TABLE_NODE_WIDTH, TableEdge, TableNode } from './table-node'
 
-export default function TablesGraph({ schema }: { schema: string }) {
+export default function TablesGraph({
+  databaseId,
+  schema,
+}: {
+  databaseId: string
+  schema: string
+}) {
   const { resolvedTheme } = useTheme()
 
   const {
@@ -28,7 +34,7 @@ export default function TablesGraph({ schema }: { schema: string }) {
     error,
     isError,
     isLoading,
-  } = useTablesQuery({ schemas: [schema], includeColumns: true })
+  } = useTablesQuery({ databaseId, schemas: [schema] })
 
   const isEmpty = tables && tables.length === 0
 

@@ -79,19 +79,6 @@ export const tools = {
       })
     ),
   },
-  switchTab: {
-    description: codeBlock`
-      Switches to a different tab.
-    `,
-    args: z.object({
-      tab: tabsSchema,
-    }),
-    result: result(
-      z.object({
-        message: z.string(),
-      })
-    ),
-  },
   requestCsv: {
     description: codeBlock`
       Requests a CSV upload from the user.

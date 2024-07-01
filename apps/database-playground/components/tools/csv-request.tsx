@@ -7,13 +7,14 @@ import { ToolInvocation } from '~/lib/tools'
 import { downloadFile } from '~/lib/util'
 
 export type CsvRequestProps = {
+  databaseId: string
   toolInvocation: ToolInvocation<'requestCsv'>
 }
 
-export default function CsvRequest({ toolInvocation }: CsvRequestProps) {
+export default function CsvRequest({ databaseId, toolInvocation }: CsvRequestProps) {
   const { addToolResult } = useChat({
-    id: 'main',
-    api: 'api/chat',
+    id: databaseId,
+    api: '/api/chat',
   })
 
   if ('result' in toolInvocation) {

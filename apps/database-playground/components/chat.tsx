@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@ui/components/shadcn/ui/button'
-import { Message, generateId } from 'ai'
+import { CreateMessage, Message, generateId } from 'ai'
 import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import { ArrowDown, ArrowUp, Paperclip, Square } from 'lucide-react'
@@ -18,11 +18,14 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { AiIconAnimation } from 'ui'
+import { AiIconAnimation, cn } from 'ui'
+import { useMessageCreateMutation } from '~/data/messages/message-create-mutation'
+import { useMessagesQuery } from '~/data/messages/messages-query'
 import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
 import { saveFile } from '~/lib/files'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
 import { OnToolCall } from '~/lib/tools'
+import { ensureMessageId } from '~/lib/util'
 import ChatMessage from './chat-message'
 
 export function getInitialMessages(tables?: TablesData): Message[] {
@@ -176,23 +179,39 @@ function useFollowMouse<T extends HTMLElement, P extends HTMLElement>({
 }
 
 export type ChatProps = {
+  databaseId: string
   onToolCall: OnToolCall
 }
 
-export default function Chat({ onToolCall }: ChatProps) {
-  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
+export default function Chat({ databaseId, onToolCall }: ChatProps) {
+  const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
+  const { data: existingMessages } = useMessagesQuery(databaseId)
+
   const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
 
   const [brainstormIdeas] = useState(false) // temporarily turn off for now
-  const { reports } = useReportSuggestions({ enabled: brainstormIdeas })
+  const { reports } = useReportSuggestions({ databaseId, enabled: brainstormIdeas })
+  const { mutateAsync: saveMessage } = useMessageCreateMutation(databaseId)
 
   const { messages, input, setInput, handleInputChange, append, stop, isLoading } = useChat({
-    id: 'main',
-    api: 'api/chat',
+    id: databaseId,
+    api: '/api/chat',
     maxToolRoundtrips: 10,
     onToolCall: onToolCall as any, // our `OnToolCall` type is more specific then `ai` SDK's
-    initialMessages,
+    initialMessages: existingMessages ?? initialMessages,
+    async onFinish(message) {
+      await saveMessage({ message })
+    },
   })
+
+  const appendMessage = useCallback(
+    async (message: Message | CreateMessage) => {
+      ensureMessageId(message)
+
+      await Promise.all([append(message), saveMessage({ message })])
+    },
+    [saveMessage, append]
+  )
 
   const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll()
 
@@ -209,7 +228,7 @@ export default function Chat({ onToolCall }: ChatProps) {
 
       // Add an artificial tool call requesting the CSV
       // with the file result all in one operation.
-      append({
+      appendMessage({
         role: 'assistant',
         content: '',
         toolInvocations: [
@@ -232,7 +251,7 @@ export default function Chat({ onToolCall }: ChatProps) {
         ],
       })
     },
-    [append]
+    [appendMessage]
   )
 
   const {
@@ -279,7 +298,7 @@ export default function Chat({ onToolCall }: ChatProps) {
       // We want to control the ID so that we can perform layout animations via `layoutId`
       // (see hidden dummy message above)
       e.preventDefault()
-      append({
+      appendMessage({
         id: nextMessageId,
         role: 'user',
         content: input,
@@ -291,8 +310,10 @@ export default function Chat({ onToolCall }: ChatProps) {
         scrollToEnd()
       }, 0)
     },
-    [append, nextMessageId, input, setInput, scrollToEnd]
+    [appendMessage, nextMessageId, input, setInput, scrollToEnd]
   )
+
+  const [isMessageAnimationComplete, setIsMessageAnimationComplete] = useState(false)
 
   return (
     <div ref={dropZoneRef} className="h-full flex flex-col items-stretch relative">
@@ -309,12 +330,33 @@ export default function Chat({ onToolCall }: ChatProps) {
       )}
       {dropZoneCursor}
       <div className="flex-1 relative h-full min-h-0">
-        <div className="h-full flex flex-col items-center overflow-y-auto" ref={scrollRef}>
+        <div
+          className={cn(
+            'h-full flex flex-col items-center overflow-y-auto',
+            !isMessageAnimationComplete ? 'overflow-x-hidden' : undefined
+          )}
+          ref={scrollRef}
+        >
           {messages.length > initialMessages.length ? (
-            <div className="flex flex-col gap-4 w-full max-w-4xl p-10">
+            <m.div
+              key={databaseId}
+              className="flex flex-col gap-4 w-full max-w-4xl p-10"
+              variants={{
+                show: {
+                  transition: {
+                    staggerChildren: 0.01,
+                  },
+                },
+              }}
+              onAnimationStart={() => setIsMessageAnimationComplete(false)}
+              onAnimationComplete={() => setIsMessageAnimationComplete(true)}
+              initial="hidden"
+              animate="show"
+            >
               {messages.map((message, i) => (
                 <ChatMessage
                   key={message.id}
+                  databaseId={databaseId}
                   message={message}
                   isLast={i === messages.length - 1}
                 />
@@ -353,7 +395,7 @@ export default function Chat({ onToolCall }: ChatProps) {
                   </m.div>
                 )}
               </AnimatePresence>
-            </div>
+            </m.div>
           ) : (
             <div className="flex-1 w-full max-w-4xl flex flex-col gap-10 justify-center items-center">
               <m.h3 layout className="text-2xl font-light">
@@ -381,7 +423,7 @@ export default function Chat({ onToolCall }: ChatProps) {
                             layoutId={`report-suggestion-${report.name}`}
                             className="w-64 h-32 flex flex-col overflow-ellipsis rounded-md cursor-pointer"
                             onMouseDown={() =>
-                              append({ role: 'user', content: report.description })
+                              appendMessage({ role: 'user', content: report.description })
                             }
                             variants={{
                               hidden: { scale: 0 },

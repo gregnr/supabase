@@ -19,7 +19,7 @@ import {
   Table2,
   Trash2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   EdgeProps,
   Handle,
@@ -30,8 +30,6 @@ import {
   useUpdateNodeInternals,
 } from 'reactflow'
 import { cn } from 'ui'
-import { useTablesQuery } from '~/data/tables/tables-query'
-import { getInitialMessages } from '../chat'
 
 // ReactFlow is scaling everything by the factor of 2
 export const TABLE_NODE_WIDTH = 640
@@ -71,12 +69,7 @@ const itemHeight = 'h-[44px]'
 /**
  * Custom node to display database tables.
  */
-export const TableNode = ({
-  id,
-  data,
-  targetPosition,
-  sourcePosition,
-}: NodeProps<TableNodeData>) => {
+export function TableNode({ id, data, targetPosition, sourcePosition }: NodeProps<TableNodeData>) {
   const updateNodeInternals = useUpdateNodeInternals()
   const [showHandles, setShowHandles] = useState(false)
 
@@ -141,6 +134,7 @@ export const TableNode = ({
       {data.columns.map((column) => (
         <TableColumn
           key={column.id}
+          databaseId={'TODO: pass through context'}
           column={column}
           data={data}
           showHandles={showHandles}
@@ -153,6 +147,7 @@ export const TableNode = ({
 }
 
 type TableColumnProps = {
+  databaseId: string
   column: TableNodeData['columns'][number]
   data: TableNodeData
   showHandles: boolean
@@ -161,6 +156,7 @@ type TableColumnProps = {
 }
 
 function TableColumn({
+  databaseId,
   column,
   data,
   showHandles,
@@ -170,9 +166,6 @@ function TableColumn({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
 
-  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
-  const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
-
   useOnViewportChange({
     onChange() {
       setIsPopoverOpen(false)
@@ -180,9 +173,8 @@ function TableColumn({
   })
 
   const { append } = useChat({
-    id: 'main',
-    api: 'api/chat',
-    initialMessages,
+    id: databaseId,
+    api: '/api/chat',
   })
 
   return (
