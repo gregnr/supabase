@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@ui/components/shadcn/ui/button'
+import { Skeleton } from '@ui/components/shadcn/ui/skeleton'
 import { CreateMessage, Message, generateId } from 'ai'
 import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
@@ -185,7 +186,8 @@ export type ChatProps = {
 
 export default function Chat({ databaseId, onToolCall }: ChatProps) {
   const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
-  const { data: existingMessages } = useMessagesQuery(databaseId)
+  const { data: existingMessages, isLoading: isExistingMessagesLoading } =
+    useMessagesQuery(databaseId)
 
   const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
 
@@ -330,14 +332,23 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
       )}
       {dropZoneCursor}
       <div className="flex-1 relative h-full min-h-0">
-        <div
-          className={cn(
-            'h-full flex flex-col items-center overflow-y-auto',
-            !isMessageAnimationComplete ? 'overflow-x-hidden' : undefined
-          )}
-          ref={scrollRef}
-        >
-          {messages.length > initialMessages.length ? (
+        {isExistingMessagesLoading ? (
+          <div className="h-full w-full max-w-4xl flex flex-col gap-10 p-10">
+            <Skeleton className="self-end h-10 w-1/3 rounded-3xl" />
+            <Skeleton className="self-start h-28 w-2/3 rounded-3xl" />
+            <Skeleton className="self-end h-10 w-2/3 rounded-3xl" />
+            <Skeleton className="self-start h-56 w-3/4 rounded-3xl" />
+            <Skeleton className="self-end h-10 w-1/2 rounded-3xl" />
+            <Skeleton className="self-start h-20 w-3/4 rounded-3xl" />
+          </div>
+        ) : messages.length > initialMessages.length ? (
+          <div
+            className={cn(
+              'h-full flex flex-col items-center overflow-y-auto',
+              !isMessageAnimationComplete ? 'overflow-x-hidden' : undefined
+            )}
+            ref={scrollRef}
+          >
             <m.div
               key={databaseId}
               className="flex flex-col gap-4 w-full max-w-4xl p-10"
@@ -396,82 +407,82 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
                 )}
               </AnimatePresence>
             </m.div>
-          ) : (
-            <div className="flex-1 w-full max-w-4xl flex flex-col gap-10 justify-center items-center">
-              <m.h3 layout className="text-2xl font-light">
-                What would you like to create?
-              </m.h3>
-              <div>
-                {brainstormIdeas && (
-                  <>
-                    {reports ? (
-                      <m.div
-                        className="flex flex-row gap-6 flex-wrap justify-center items-start"
-                        variants={{
-                          show: {
-                            transition: {
-                              staggerChildren: 0.05,
-                            },
+          </div>
+        ) : (
+          <div className="h-full w-full max-w-4xl flex flex-col gap-10 justify-center items-center">
+            <m.h3 layout className="text-2xl font-light">
+              What would you like to create?
+            </m.h3>
+            <div>
+              {brainstormIdeas && (
+                <>
+                  {reports ? (
+                    <m.div
+                      className="flex flex-row gap-6 flex-wrap justify-center items-start"
+                      variants={{
+                        show: {
+                          transition: {
+                            staggerChildren: 0.05,
                           },
-                        }}
-                        initial="hidden"
-                        animate="show"
-                      >
-                        {reports.map((report) => (
-                          <m.div
-                            key={report.name}
-                            layoutId={`report-suggestion-${report.name}`}
-                            className="w-64 h-32 flex flex-col overflow-ellipsis rounded-md cursor-pointer"
-                            onMouseDown={() =>
-                              appendMessage({ role: 'user', content: report.description })
-                            }
-                            variants={{
-                              hidden: { scale: 0 },
-                              show: { scale: 1 },
-                            }}
-                          >
-                            <div className="p-4 bg-neutral-200 text-sm rounded-t-md text-neutral-600 font-bold text-center">
-                              {report.name}
-                            </div>
-                            <div className="flex-1 p-4 flex flex-col justify-center border border-neutral-200 text-neutral-500 text-xs font-normal italic rounded-b-md text-center overflow-hidden">
-                              {report.description}
-                            </div>
-                          </m.div>
-                        ))}
-                      </m.div>
-                    ) : (
-                      <m.div
-                        className="flex flex-row gap-4 justify-center items-center"
-                        variants={{
-                          hidden: {
-                            opacity: 0,
-                            y: -10,
-                          },
-                          show: {
-                            opacity: 1,
-                            y: 0,
-                            transition: {
-                              delay: 0.5,
-                            },
-                          },
-                        }}
-                        initial="hidden"
-                        animate="show"
-                      >
-                        <m.div layoutId="ai-loading-icon">
-                          <AiIconAnimation loading />
+                        },
+                      }}
+                      initial="hidden"
+                      animate="show"
+                    >
+                      {reports.map((report) => (
+                        <m.div
+                          key={report.name}
+                          layoutId={`report-suggestion-${report.name}`}
+                          className="w-64 h-32 flex flex-col overflow-ellipsis rounded-md cursor-pointer"
+                          onMouseDown={() =>
+                            appendMessage({ role: 'user', content: report.description })
+                          }
+                          variants={{
+                            hidden: { scale: 0 },
+                            show: { scale: 1 },
+                          }}
+                        >
+                          <div className="p-4 bg-neutral-200 text-sm rounded-t-md text-neutral-600 font-bold text-center">
+                            {report.name}
+                          </div>
+                          <div className="flex-1 p-4 flex flex-col justify-center border border-neutral-200 text-neutral-500 text-xs font-normal italic rounded-b-md text-center overflow-hidden">
+                            {report.description}
+                          </div>
                         </m.div>
-                        <h3 className="text-lg italic font-light text-neutral-500">
-                          Brainstorming some ideas
-                        </h3>
+                      ))}
+                    </m.div>
+                  ) : (
+                    <m.div
+                      className="flex flex-row gap-4 justify-center items-center"
+                      variants={{
+                        hidden: {
+                          opacity: 0,
+                          y: -10,
+                        },
+                        show: {
+                          opacity: 1,
+                          y: 0,
+                          transition: {
+                            delay: 0.5,
+                          },
+                        },
+                      }}
+                      initial="hidden"
+                      animate="show"
+                    >
+                      <m.div layoutId="ai-loading-icon">
+                        <AiIconAnimation loading />
                       </m.div>
-                    )}
-                  </>
-                )}
-              </div>
+                      <h3 className="text-lg italic font-light text-neutral-500">
+                        Brainstorming some ideas
+                      </h3>
+                    </m.div>
+                  )}
+                </>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <AnimatePresence>
           {!isSticky && (
             <m.div
@@ -516,7 +527,7 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
           {input && (
             <m.div
               layoutId={nextMessageId}
-              className="absolute invisible -top-12 px-5 py-2.5 text-base rounded-full bg-neutral-100"
+              className="absolute invisible -top-12 px-5 py-2.5 text-base rounded-full bg-neutral-100 whitespace-pre-wrap"
             >
               {input}
             </m.div>
