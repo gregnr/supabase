@@ -6,7 +6,7 @@ import { codeBlock } from 'common-tags'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
-import { getDatabase } from './db'
+import { getDb } from './db'
 import { loadFile, saveFile } from './files'
 import { SmoothScroller } from './smooth-scroller'
 import { OnToolCall } from './tools'
@@ -277,7 +277,7 @@ export function useOnToolCall(databaseId: string) {
 
   return useCallback<OnToolCall>(
     async ({ toolCall }) => {
-      const db = await getDatabase(databaseId)
+      const db = await getDb(databaseId)
 
       switch (toolCall.toolName) {
         case 'getDatabaseSchema': {

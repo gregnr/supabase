@@ -6,7 +6,7 @@ import {
   wrapResult,
 } from '@gregnr/postgres-meta/base'
 import { UseQueryOptions, useQuery } from '@tanstack/react-query'
-import { getDatabase } from '~/lib/db'
+import { getDb } from '~/lib/db'
 
 export type TablesVariables = {
   databaseId: string
@@ -16,7 +16,7 @@ export type TablesData = PostgresTable[]
 export type TablesError = PostgresMetaErr['error']
 
 export async function getTablesForQuery({ databaseId, schemas }: TablesVariables) {
-  const db = await getDatabase(databaseId)
+  const db = await getDb(databaseId)
 
   const pgMeta = new PostgresMetaBase({
     query: async (sql) => {

@@ -30,23 +30,7 @@ export async function getMetaDb() {
   return await metaDbPromise
 }
 
-// TODO: move into react query
-export async function deleteDatabase(id: string) {
-  const metaDb = await getMetaDb()
-
-  await metaDb.query<Database>(
-    codeBlock`
-      delete from databases
-      where id = $1
-    `,
-    [id]
-  )
-
-  await closeDatabase(id)
-  indexedDB.deleteDatabase(`/pglite/${prefix}-${id}`)
-}
-
-export async function getDatabase(id: string) {
+export async function getDb(id: string) {
   const openDatabasePromise = databaseConnections.get(id)
 
   if (openDatabasePromise) {
@@ -77,13 +61,18 @@ export async function getDatabase(id: string) {
   return await promise
 }
 
-export async function closeDatabase(id: string) {
+export async function closeDb(id: string) {
   let db = await databaseConnections.get(id)
 
-  if (db) {
+  if (db && !db.closed) {
     await db.close()
     databaseConnections.delete(id)
   }
+}
+
+export async function deleteDb(id: string) {
+  await closeDb(id)
+  indexedDB.deleteDatabase(`/pglite/${prefix}-${id}`)
 }
 
 // Transaction isn't actually a PGliteWorker, but it's the closest type for now
@@ -113,7 +102,7 @@ const metaMigrations: Migration[] = [
     sql: codeBlock`
       create table messages (
         id text primary key,
-        database_id text not null references databases(id),
+        database_id text not null references databases(id) on delete cascade,
         created_at timestamptz not null default now(),
         content text not null,
         role text not null check (role in ('user', 'assistant', 'tool')),
