@@ -21,7 +21,7 @@ export default function Workspace({ databaseId }: WorkspaceProps) {
           <Chat databaseId={databaseId} onToolCall={onToolCall} />
         </IDE>
         {!isSmallBreakpoint && (
-          <div className="flex-1 h-full">
+          <div className="flex-1 h-full overflow-x-scroll">
             <Chat databaseId={databaseId} onToolCall={onToolCall} />
           </div>
         )}
