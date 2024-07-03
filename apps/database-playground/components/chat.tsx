@@ -2,7 +2,7 @@
 
 import { Button } from '@ui/components/shadcn/ui/button'
 import { Skeleton } from '@ui/components/shadcn/ui/skeleton'
-import { CreateMessage, Message, generateId } from 'ai'
+import { Message, generateId } from 'ai'
 import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import { ArrowDown, ArrowUp, Paperclip, Square } from 'lucide-react'
@@ -20,14 +20,11 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { AiIconAnimation, cn } from 'ui'
-import { useMessageCreateMutation } from '~/data/messages/message-create-mutation'
-import { useMessagesQuery } from '~/data/messages/messages-query'
-import { TablesData, useTablesQuery } from '~/data/tables/tables-query'
+import { TablesData } from '~/data/tables/tables-query'
 import { saveFile } from '~/lib/files'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
-import { OnToolCall } from '~/lib/tools'
-import { ensureMessageId } from '~/lib/util'
 import ChatMessage from './chat-message'
+import { useWorkspace } from './workspace'
 
 export function getInitialMessages(tables: TablesData): Message[] {
   return [
@@ -179,44 +176,24 @@ function useFollowMouse<T extends HTMLElement, P extends HTMLElement>({
   return { ref }
 }
 
-export type ChatProps = {
-  databaseId: string
-  onToolCall: OnToolCall
-  onStart?: () => void | Promise<void>
-}
-
-export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
-  const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
-  const { data: existingMessages, isLoading: isExistingMessagesLoading } =
-    useMessagesQuery(databaseId)
-
-  const initialMessages = useMemo(() => (tables ? getInitialMessages(tables) : undefined), [tables])
+export default function Chat() {
+  const {
+    databaseId,
+    isLoadingMessages,
+    isLoadingSchema,
+    isConversationStarted,
+    messages,
+    appendMessage,
+    stopReply,
+  } = useWorkspace()
 
   const [brainstormIdeas] = useState(false) // temporarily turn off for now
-  const { reports } = useReportSuggestions({ databaseId, enabled: brainstormIdeas })
-  const { mutateAsync: saveMessage } = useMessageCreateMutation(databaseId)
+  const { reports } = useReportSuggestions({ enabled: brainstormIdeas })
 
-  const { messages, input, setInput, handleInputChange, append, stop, isLoading } = useChat({
+  const { input, setInput, handleInputChange, isLoading } = useChat({
     id: databaseId,
     api: '/api/chat',
-    maxToolRoundtrips: 10,
-    onToolCall: onToolCall as any, // our `OnToolCall` type is more specific then `ai` SDK's
-    initialMessages:
-      existingMessages && existingMessages.length > 0 ? existingMessages : initialMessages,
-    async onFinish(message) {
-      await saveMessage({ message })
-      await onStart?.()
-    },
   })
-
-  const appendMessage = useCallback(
-    async (message: Message | CreateMessage) => {
-      ensureMessageId(message)
-      append(message)
-      saveMessage({ message })
-    },
-    [saveMessage, append]
-  )
 
   const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll()
 
@@ -320,7 +297,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
 
   const [isMessageAnimationComplete, setIsMessageAnimationComplete] = useState(false)
 
-  const isSubmitEnabled = Boolean(initialMessages) && Boolean(input.trim())
+  const isSubmitEnabled = !isLoadingMessages && !isLoadingSchema && Boolean(input.trim())
 
   return (
     <div ref={dropZoneRef} className="h-full flex flex-col items-stretch relative">
@@ -337,7 +314,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
       )}
       {dropZoneCursor}
       <div className="flex-1 relative h-full min-h-0">
-        {messages.length === 0 && isExistingMessagesLoading ? (
+        {isLoadingMessages || isLoadingSchema ? (
           <div className="h-full w-full max-w-4xl flex flex-col gap-10 p-10">
             <Skeleton className="self-end h-10 w-1/3 rounded-3xl" />
             <Skeleton className="self-start h-28 w-2/3 rounded-3xl" />
@@ -346,7 +323,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
             <Skeleton className="self-end h-10 w-1/2 rounded-3xl" />
             <Skeleton className="self-start h-20 w-3/4 rounded-3xl" />
           </div>
-        ) : initialMessages && messages.length > initialMessages.length ? (
+        ) : isConversationStarted ? (
           <div
             className={cn(
               'h-full flex flex-col items-center overflow-y-auto',
@@ -372,7 +349,6 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
               {messages.map((message, i) => (
                 <ChatMessage
                   key={message.id}
-                  databaseId={databaseId}
                   message={message}
                   isLast={i === messages.length - 1}
                 />
@@ -610,7 +586,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
               type="submit"
               onClick={(e) => {
                 e.preventDefault()
-                stop()
+                stopReply()
               }}
             >
               <Square fill="white" strokeWidth={0} className="w-3.5 h-3.5" />

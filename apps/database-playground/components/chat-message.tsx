@@ -1,7 +1,7 @@
 'use client'
 
 import { Message } from 'ai'
-import { m, motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
@@ -11,12 +11,11 @@ import { markdownComponents } from 'ui'
 import { ToolUi } from './tools'
 
 export type ChatMessageProps = {
-  databaseId: string
   message: Message
   isLast: boolean
 }
 
-function ChatMessage({ databaseId, message, isLast }: ChatMessageProps) {
+function ChatMessage({ message, isLast }: ChatMessageProps) {
   switch (message.role) {
     case 'user':
       return (
@@ -53,11 +52,7 @@ function ChatMessage({ databaseId, message, isLast }: ChatMessageProps) {
       const toolElements =
         message.toolInvocations
           ?.map((toolInvocation) => (
-            <ToolUi
-              key={toolInvocation.toolCallId}
-              databaseId={databaseId}
-              toolInvocation={toolInvocation as any}
-            />
+            <ToolUi key={toolInvocation.toolCallId} toolInvocation={toolInvocation as any} />
           ))
           .filter(Boolean) ?? []
 

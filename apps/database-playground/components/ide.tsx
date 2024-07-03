@@ -12,15 +12,15 @@ import { tabsSchema, TabValue } from '~/lib/schema'
 import { isMigrationStatement } from '~/lib/sql-util'
 import { ToolInvocation } from '~/lib/tools'
 import SchemaGraph from './schema/graph'
+import { useWorkspace } from './workspace'
 
 const initialMigrationSql = '-- Migrations will appear here as you chat with Supabase AI\n'
 const initialSeedSql = '-- Seeds will appear here as you chat with Supabase AI\n'
 
-export type IDEProps = PropsWithChildren<{
-  databaseId: string
-}>
+export type IDEProps = PropsWithChildren
 
-export default function IDE({ children, databaseId }: IDEProps) {
+export default function IDE({ children }: IDEProps) {
+  const { databaseId } = useWorkspace()
   const [tab, setTab] = useState<TabValue>('diagram')
 
   const isSmallBreakpoint = useBreakpoint('lg')

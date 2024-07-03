@@ -6,7 +6,6 @@ import {
   PopoverSeparator,
   PopoverTrigger,
 } from '@ui/components/shadcn/ui/popover'
-import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import {
   CircleSlash,
@@ -30,6 +29,7 @@ import {
   useUpdateNodeInternals,
 } from 'reactflow'
 import { cn } from 'ui'
+import { useWorkspace } from '../workspace'
 
 // ReactFlow is scaling everything by the factor of 2
 export const TABLE_NODE_WIDTH = 640
@@ -134,7 +134,6 @@ export function TableNode({ id, data, targetPosition, sourcePosition }: NodeProp
       {data.columns.map((column) => (
         <TableColumn
           key={column.id}
-          databaseId={'TODO: pass through context'}
           column={column}
           data={data}
           showHandles={showHandles}
@@ -147,7 +146,6 @@ export function TableNode({ id, data, targetPosition, sourcePosition }: NodeProp
 }
 
 type TableColumnProps = {
-  databaseId: string
   column: TableNodeData['columns'][number]
   data: TableNodeData
   showHandles: boolean
@@ -156,7 +154,6 @@ type TableColumnProps = {
 }
 
 function TableColumn({
-  databaseId,
   column,
   data,
   showHandles,
@@ -172,10 +169,7 @@ function TableColumn({
     },
   })
 
-  const { append } = useChat({
-    id: databaseId,
-    api: '/api/chat',
-  })
+  const { appendMessage } = useWorkspace()
 
   return (
     <Popover
@@ -351,7 +345,7 @@ function TableColumn({
                 const formData = new FormData(e.target)
                 const newName = formData.get('name')
 
-                append({
+                appendMessage({
                   role: 'user',
                   content: `Rename the "${column.name}" column in the ${data.name} table to "${newName}"`,
                 })
@@ -382,7 +376,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Make the "${column.name}" column in the ${data.name} table ${column.isNullable ? 'not nullable' : 'nullable'}`,
                   })
@@ -401,7 +395,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Make the "${column.name}" column in the ${data.name} table ${column.isUnique ? 'not unique' : 'unique'}`,
                   })
@@ -420,7 +414,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Help me choose the best index for the "${column.name}" column in the ${data.name} table`,
                   })
@@ -436,7 +430,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Remove the "${column.name}" column in the ${data.name} table`,
                   })

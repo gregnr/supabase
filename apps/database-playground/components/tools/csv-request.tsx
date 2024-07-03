@@ -5,13 +5,15 @@ import { Paperclip } from 'lucide-react'
 import { loadFile, saveFile } from '~/lib/files'
 import { ToolInvocation } from '~/lib/tools'
 import { downloadFile } from '~/lib/util'
+import { useWorkspace } from '../workspace'
 
 export type CsvRequestProps = {
-  databaseId: string
   toolInvocation: ToolInvocation<'requestCsv'>
 }
 
-export default function CsvRequest({ databaseId, toolInvocation }: CsvRequestProps) {
+export default function CsvRequest({ toolInvocation }: CsvRequestProps) {
+  const { databaseId } = useWorkspace()
+
   const { addToolResult } = useChat({
     id: databaseId,
     api: '/api/chat',

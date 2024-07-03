@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { generateId, nanoid } from 'ai'
+import { generateId } from 'ai'
 import { useChat } from 'ai/react'
 import { Chart } from 'chart.js'
 import { codeBlock } from 'common-tags'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useWorkspace } from '~/components/workspace'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
 import { getDb } from './db'
@@ -12,15 +13,15 @@ import { SmoothScroller } from './smooth-scroller'
 import { OnToolCall } from './tools'
 
 export type UseReportSuggestionsOptions = {
-  databaseId: string
   enabled?: boolean
 }
 
-export function useReportSuggestions({ databaseId, enabled = true }: UseReportSuggestionsOptions) {
+export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOptions) {
+  const { databaseId, appendMessage } = useWorkspace()
   const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
   const [reports, setReports] = useState<Report[]>()
 
-  const { append, setMessages } = useChat({
+  const { setMessages } = useChat({
     id: databaseId,
     api: '/api/chat',
     async onToolCall({ toolCall }) {
@@ -38,12 +39,12 @@ export function useReportSuggestions({ databaseId, enabled = true }: UseReportSu
       // Provide the LLM with the current schema before invoking the tool call
       setMessages([
         {
-          id: nanoid(),
+          id: generateId(),
           role: 'assistant',
           content: '',
           toolInvocations: [
             {
-              toolCallId: nanoid(),
+              toolCallId: generateId(),
               toolName: 'getDatabaseSchema',
               args: {},
               result: tables,
@@ -52,7 +53,7 @@ export function useReportSuggestions({ databaseId, enabled = true }: UseReportSu
         },
       ])
 
-      append({
+      appendMessage({
         role: 'user',
         content: codeBlock`
         Brainstorm 5 interesting charts that can be generated based on tables and their columns in the database.

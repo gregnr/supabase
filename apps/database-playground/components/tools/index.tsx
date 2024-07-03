@@ -6,18 +6,17 @@ import ExecutedSql from './executed-sql'
 import GeneratedChart from './generated-chart'
 
 export type ToolUiProps = {
-  databaseId: string
   toolInvocation: ToolInvocation
 }
 
-export function ToolUi({ databaseId, toolInvocation }: ToolUiProps) {
+export function ToolUi({ toolInvocation }: ToolUiProps) {
   switch (toolInvocation.toolName) {
     case 'executeSql':
       return <ExecutedSql toolInvocation={toolInvocation} />
     case 'generateChart':
       return <GeneratedChart toolInvocation={toolInvocation} />
     case 'requestCsv':
-      return <CsvRequest databaseId={databaseId} toolInvocation={toolInvocation} />
+      return <CsvRequest toolInvocation={toolInvocation} />
     case 'importCsv':
       return <CsvImport toolInvocation={toolInvocation} />
     case 'exportCsv':
