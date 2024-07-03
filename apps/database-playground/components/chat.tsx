@@ -29,7 +29,7 @@ import { OnToolCall } from '~/lib/tools'
 import { ensureMessageId } from '~/lib/util'
 import ChatMessage from './chat-message'
 
-export function getInitialMessages(tables?: TablesData): Message[] {
+export function getInitialMessages(tables: TablesData): Message[] {
   return [
     // An artificial tool call containing the DB schema
     // as if it was already called by the LLM
@@ -190,7 +190,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
   const { data: existingMessages, isLoading: isExistingMessagesLoading } =
     useMessagesQuery(databaseId)
 
-  const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
+  const initialMessages = useMemo(() => (tables ? getInitialMessages(tables) : undefined), [tables])
 
   const [brainstormIdeas] = useState(false) // temporarily turn off for now
   const { reports } = useReportSuggestions({ databaseId, enabled: brainstormIdeas })
@@ -320,6 +320,8 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
 
   const [isMessageAnimationComplete, setIsMessageAnimationComplete] = useState(false)
 
+  const isSubmitEnabled = Boolean(initialMessages) && Boolean(input.trim())
+
   return (
     <div ref={dropZoneRef} className="h-full flex flex-col items-stretch relative">
       {isDraggingOver && (
@@ -344,7 +346,7 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
             <Skeleton className="self-end h-10 w-1/2 rounded-3xl" />
             <Skeleton className="self-start h-20 w-3/4 rounded-3xl" />
           </div>
-        ) : messages.length > initialMessages.length ? (
+        ) : initialMessages && messages.length > initialMessages.length ? (
           <div
             className={cn(
               'h-full flex flex-col items-center overflow-y-auto',
@@ -413,7 +415,16 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
           </div>
         ) : (
           <div className="h-full w-full max-w-4xl flex flex-col gap-10 justify-center items-center">
-            <m.h3 layout className="text-2xl font-light">
+            <m.h3
+              layout
+              className="text-2xl font-light"
+              variants={{
+                hidden: { opacity: 0, y: 10 },
+                show: { opacity: 1, y: 0 },
+              }}
+              initial="hidden"
+              animate="show"
+            >
               What would you like to create?
             </m.h3>
             <div>
@@ -587,29 +598,32 @@ export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
 
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                if (!isLoading && !!input.trim()) {
+                if (!isLoading && isSubmitEnabled) {
                   handleFormSubmit(e)
                 }
               }
             }}
           />
-          <Button
-            className="rounded-full w-8 h-8 p-1.5 my-1 text-neutral-50 bg-neutral-800"
-            type="submit"
-            onClick={(e) => {
-              if (isLoading) {
+          {isLoading ? (
+            <Button
+              className="rounded-full w-8 h-8 p-1.5 my-1 text-neutral-50 bg-neutral-800"
+              type="submit"
+              onClick={(e) => {
                 e.preventDefault()
                 stop()
-              }
-            }}
-            disabled={!isLoading && !input.trim()}
-          >
-            {isLoading ? (
+              }}
+            >
               <Square fill="white" strokeWidth={0} className="w-3.5 h-3.5" />
-            ) : (
+            </Button>
+          ) : (
+            <Button
+              className="rounded-full w-8 h-8 p-1.5 my-1 text-neutral-50 bg-neutral-800"
+              type="submit"
+              disabled={!isSubmitEnabled}
+            >
               <ArrowUp />
-            )}
-          </Button>
+            </Button>
+          )}
         </form>
         <div className="text-xs text-neutral-500">
           AI can make mistakes. Check important information.
