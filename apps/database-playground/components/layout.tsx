@@ -11,7 +11,6 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { PropsWithChildren, useState } from 'react'
 import { cn } from 'ui'
-import { useDatabaseCreateMutation } from '~/data/databases/database-create-mutation'
 import { useDatabaseDeleteMutation } from '~/data/databases/database-delete-mutation'
 import { useDatabasesQuery } from '~/data/databases/databases-query'
 import { Database } from '~/lib/db'
@@ -21,7 +20,6 @@ export type LayoutProps = PropsWithChildren
 export default function Layout({ children }: LayoutProps) {
   const router = useRouter()
   const { data: databases } = useDatabasesQuery()
-  const { mutateAsync: createDatabase } = useDatabaseCreateMutation()
   let { id: currentDatabaseId } = useParams<{ id: string }>()
 
   return (
@@ -30,8 +28,7 @@ export default function Layout({ children }: LayoutProps) {
         <Button
           className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
           onClick={async () => {
-            const { id } = await createDatabase()
-            router.push(`/d/${id}`)
+            router.push('/')
           }}
         >
           + New database
@@ -55,6 +52,7 @@ type DatabaseMenuItemProps = {
 }
 
 function DatabaseMenuItem({ database, isActive }: DatabaseMenuItemProps) {
+  const router = useRouter()
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const { mutateAsync: deleteDatabase } = useDatabaseDeleteMutation()
 
@@ -92,6 +90,7 @@ function DatabaseMenuItem({ database, isActive }: DatabaseMenuItemProps) {
               onClick={async (e) => {
                 e.preventDefault()
                 await deleteDatabase({ id: database.id })
+                router.push('/')
               }}
             >
               <Trash2 size={16} strokeWidth={2} className="flex-shrink-0 text-light" />

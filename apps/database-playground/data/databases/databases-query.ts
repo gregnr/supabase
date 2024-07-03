@@ -1,4 +1,5 @@
 import { UseQueryOptions, useQuery } from '@tanstack/react-query'
+import { codeBlock } from 'common-tags'
 import { Database, getMetaDb } from '~/lib/db'
 
 export const useDatabasesQuery = (
@@ -11,7 +12,10 @@ export const useDatabasesQuery = (
       const metaDb = await getMetaDb()
 
       const { rows: databases } = await metaDb.query<Database>(
-        'select id, name, created_at as "createdAt" from databases'
+        codeBlock`
+          select id, name, created_at as "createdAt" from databases
+          where hidden = false
+        `
       )
 
       return databases

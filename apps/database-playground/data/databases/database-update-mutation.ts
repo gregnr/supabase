@@ -1,35 +1,35 @@
 import { useMutation, UseMutationOptions, useQueryClient } from '@tanstack/react-query'
-import { generateId } from 'ai'
 import { codeBlock } from 'common-tags'
 import { Database, getMetaDb } from '~/lib/db'
 import { getDatabasesQueryKey } from './databases-query'
 
-export type DatabaseCreateVariables = {
-  id?: string
-  hidden?: boolean
+export type DatabaseUpdateVariables = {
+  id: string
+  name: string | null
+  hidden: boolean
 }
 
-export const useDatabaseCreateMutation = ({
+export const useDatabaseUpdateMutation = ({
   onSuccess,
   onError,
   ...options
-}: Omit<UseMutationOptions<Database, Error, DatabaseCreateVariables>, 'mutationFn'> = {}) => {
+}: Omit<UseMutationOptions<Database, Error, DatabaseUpdateVariables>, 'mutationFn'> = {}) => {
   const queryClient = useQueryClient()
 
-  return useMutation<Database, Error, DatabaseCreateVariables>({
-    mutationFn: async ({ id = generateId(), hidden }) => {
+  return useMutation<Database, Error, DatabaseUpdateVariables>({
+    mutationFn: async ({ id, name, hidden }) => {
       const metaDb = await getMetaDb()
 
       const {
         rows: [database],
       } = await metaDb.query<Database>(
         codeBlock`
-          insert into databases (id, hidden)
-          values ($1, $2)
-          on conflict (id) do nothing
+          update databases
+          set name = $2, hidden = $3
+          where id = $1
           returning id, name, created_at as "createdAt"
         `,
-        [id, hidden]
+        [id, name, hidden]
       )
 
       return database

@@ -1,21 +1,54 @@
 'use client'
 
+import { generateId } from 'ai'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import Workspace from '~/components/workspace'
 import { useDatabaseCreateMutation } from '~/data/databases/database-create-mutation'
+import { useDatabaseUpdateMutation } from '~/data/databases/database-update-mutation'
+import { getDb } from '~/lib/db'
+import { useLocalStorage } from '~/lib/hooks'
 
 export default function Page() {
   const router = useRouter()
+
   const { mutateAsync: createDatabase } = useDatabaseCreateMutation()
+  const { mutateAsync: updateDatabase } = useDatabaseUpdateMutation()
 
+  /**
+   * Preloads next empty database so that it is ready immediately.
+   */
+  const preloadDb = useCallback(
+    async (id: string) => {
+      await createDatabase({ id, hidden: true })
+      await getDb(id)
+    },
+    [createDatabase]
+  )
+
+  // Track the next database ID in local storage
+  const [nextDatabaseId] = useLocalStorage('next-db-id', generateId())
+
+  // The very first DB needs to be loaded on mount
   useEffect(() => {
-    async function run() {
-      const { id } = await createDatabase()
-      router.push(`/d/${id}`)
-    }
+    preloadDb(nextDatabaseId)
+  }, [nextDatabaseId, preloadDb])
 
-    run()
-  }, [router, createDatabase])
+  return (
+    <Workspace
+      databaseId={nextDatabaseId}
+      onStart={async () => {
+        // Navigate to this DB's path
+        router.push(`/d/${nextDatabaseId}`)
 
-  return null
+        // Make the DB no longer hidden
+        updateDatabase({ id: nextDatabaseId, name: null, hidden: false })
+
+        // Pre-load the next DB (but without causing a re-render)
+        const nextId = generateId()
+        localStorage.setItem('next-db-id', JSON.stringify(nextId))
+        preloadDb(nextId)
+      }}
+    />
+  )
 }

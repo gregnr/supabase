@@ -1,5 +1,4 @@
 import { PGliteWorker } from '@electric-sql/pglite/worker'
-import { generateId } from 'ai'
 import { codeBlock } from 'common-tags'
 
 export type Database = {
@@ -10,7 +9,7 @@ export type Database = {
 
 const prefix = 'playground'
 
-let metaDbPromise: Promise<PGliteWorker>
+let metaDbPromise: Promise<PGliteWorker> | undefined
 const databaseConnections = new Map<string, Promise<PGliteWorker> | undefined>()
 
 export async function getMetaDb() {
@@ -25,7 +24,10 @@ export async function getMetaDb() {
     return metaDb
   }
 
-  metaDbPromise = run()
+  metaDbPromise = run().catch((err) => {
+    metaDbPromise = undefined
+    throw err
+  })
 
   return await metaDbPromise
 }
@@ -54,7 +56,10 @@ export async function getDb(id: string) {
     return db
   }
 
-  const promise = run()
+  const promise = run().catch((err) => {
+    databaseConnections.delete(id)
+    throw err
+  })
 
   databaseConnections.set(id, promise)
 
@@ -92,7 +97,8 @@ const metaMigrations: Migration[] = [
       create table databases (
         id text primary key,
         created_at timestamptz not null default now(),
-        name text
+        name text,
+        hidden boolean not null default false
       );
     `,
   },

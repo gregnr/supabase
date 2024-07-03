@@ -8,9 +8,10 @@ const loadFramerFeatures = () => import('./framer-features').then((res) => res.d
 
 export type WorkspaceProps = {
   databaseId: string
+  onStart?: () => void
 }
 
-export default function Workspace({ databaseId }: WorkspaceProps) {
+export default function Workspace({ databaseId, onStart }: WorkspaceProps) {
   const isSmallBreakpoint = useBreakpoint('lg')
   const onToolCall = useOnToolCall(databaseId)
 
@@ -18,11 +19,11 @@ export default function Workspace({ databaseId }: WorkspaceProps) {
     <LazyMotion features={loadFramerFeatures}>
       <div className="w-full h-full flex flex-col lg:flex-row p-6 gap-8">
         <IDE databaseId={databaseId}>
-          <Chat databaseId={databaseId} onToolCall={onToolCall} />
+          <Chat databaseId={databaseId} onToolCall={onToolCall} onStart={onStart} />
         </IDE>
         {!isSmallBreakpoint && (
-          <div className="flex-1 h-full overflow-x-scroll">
-            <Chat databaseId={databaseId} onToolCall={onToolCall} />
+          <div className="flex-1 h-full overflow-x-auto">
+            <Chat databaseId={databaseId} onToolCall={onToolCall} onStart={onStart} />
           </div>
         )}
       </div>

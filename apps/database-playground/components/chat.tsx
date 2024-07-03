@@ -182,9 +182,10 @@ function useFollowMouse<T extends HTMLElement, P extends HTMLElement>({
 export type ChatProps = {
   databaseId: string
   onToolCall: OnToolCall
+  onStart?: () => void | Promise<void>
 }
 
-export default function Chat({ databaseId, onToolCall }: ChatProps) {
+export default function Chat({ databaseId, onToolCall, onStart }: ChatProps) {
   const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
   const { data: existingMessages, isLoading: isExistingMessagesLoading } =
     useMessagesQuery(databaseId)
@@ -200,17 +201,19 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
     api: '/api/chat',
     maxToolRoundtrips: 10,
     onToolCall: onToolCall as any, // our `OnToolCall` type is more specific then `ai` SDK's
-    initialMessages: existingMessages ?? initialMessages,
+    initialMessages:
+      existingMessages && existingMessages.length > 0 ? existingMessages : initialMessages,
     async onFinish(message) {
       await saveMessage({ message })
+      await onStart?.()
     },
   })
 
   const appendMessage = useCallback(
     async (message: Message | CreateMessage) => {
       ensureMessageId(message)
-
-      await Promise.all([append(message), saveMessage({ message })])
+      append(message)
+      saveMessage({ message })
     },
     [saveMessage, append]
   )
@@ -218,7 +221,7 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
   const { ref: scrollRef, isSticky, scrollToEnd } = useAutoScroll()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const nextMessageId = useMemo(() => generateId(), [messages])
+  const nextMessageId = useMemo(() => generateId(), [messages.length])
 
   const sendCsv = useCallback(
     async (file: File) => {
@@ -332,7 +335,7 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
       )}
       {dropZoneCursor}
       <div className="flex-1 relative h-full min-h-0">
-        {isExistingMessagesLoading ? (
+        {messages.length === 0 && isExistingMessagesLoading ? (
           <div className="h-full w-full max-w-4xl flex flex-col gap-10 p-10">
             <Skeleton className="self-end h-10 w-1/3 rounded-3xl" />
             <Skeleton className="self-start h-28 w-2/3 rounded-3xl" />
@@ -361,7 +364,7 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
               }}
               onAnimationStart={() => setIsMessageAnimationComplete(false)}
               onAnimationComplete={() => setIsMessageAnimationComplete(true)}
-              initial="hidden"
+              initial="show"
               animate="show"
             >
               {messages.map((message, i) => (
@@ -526,8 +529,9 @@ export default function Chat({ databaseId, onToolCall }: ChatProps) {
            */}
           {input && (
             <m.div
+              layout="position"
               layoutId={nextMessageId}
-              className="absolute invisible -top-12 px-5 py-2.5 text-base rounded-full bg-neutral-100 whitespace-pre-wrap"
+              className="absolute invisible -top-12 px-5 py-2.5 text-base rounded-3xl bg-neutral-100 whitespace-pre-wrap"
             >
               {input}
             </m.div>
