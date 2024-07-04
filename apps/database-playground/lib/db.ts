@@ -99,7 +99,7 @@ const metaMigrations: Migration[] = [
         id text primary key,
         created_at timestamptz not null default now(),
         name text,
-        hidden boolean not null default false
+        is_hidden boolean not null default false
       );
     `,
   },

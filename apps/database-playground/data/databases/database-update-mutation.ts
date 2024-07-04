@@ -26,7 +26,7 @@ export const useDatabaseUpdateMutation = ({
       } = await metaDb.query<Database>(
         codeBlock`
           update databases
-          set name = $2, hidden = $3
+          set name = $2, is_hidden = $3
           where id = $1
           returning id, name, created_at as "createdAt"
         `,

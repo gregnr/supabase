@@ -13,9 +13,9 @@ export const useDatabasesQuery = (
 
       const { rows: databases } = await metaDb.query<Database>(
         codeBlock`
-          select id, name, created_at as "createdAt", hidden as "isHidden"
+          select id, name, created_at as "createdAt", is_hidden as "isHidden"
           from databases
-          where hidden = false
+          where is_hidden = false
         `
       )
 

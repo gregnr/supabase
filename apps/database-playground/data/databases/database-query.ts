@@ -9,7 +9,7 @@ export async function getDatabase(id: string) {
     rows: [database],
   } = await metaDb.query<Database>(
     codeBlock`
-      select id, name, created_at as "createdAt", hidden as "isHidden"
+      select id, name, created_at as "createdAt", is_hidden as "isHidden"
       from databases
       where id = $1
     `,

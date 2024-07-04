@@ -20,7 +20,7 @@ export default function Page() {
    */
   const preloadDb = useCallback(
     async (id: string) => {
-      await createDatabase({ id, hidden: true })
+      await createDatabase({ id, isHidden: true })
       await getDb(id)
     },
     [createDatabase]

@@ -6,7 +6,7 @@ import { getDatabasesQueryKey } from './databases-query'
 
 export type DatabaseCreateVariables = {
   id?: string
-  hidden?: boolean
+  isHidden?: boolean
 }
 
 export const useDatabaseCreateMutation = ({
@@ -17,19 +17,19 @@ export const useDatabaseCreateMutation = ({
   const queryClient = useQueryClient()
 
   return useMutation<Database, Error, DatabaseCreateVariables>({
-    mutationFn: async ({ id = generateId(), hidden }) => {
+    mutationFn: async ({ id = generateId(), isHidden }) => {
       const metaDb = await getMetaDb()
 
       const {
         rows: [database],
       } = await metaDb.query<Database>(
         codeBlock`
-          insert into databases (id, hidden)
+          insert into databases (id, is_hidden)
           values ($1, $2)
           on conflict (id) do nothing
-          returning id, name, created_at as "createdAt"
+          returning id, name, created_at as "createdAt", is_hidden as "isHidden"
         `,
-        [id, hidden]
+        [id, isHidden]
       )
 
       return database
