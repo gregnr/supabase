@@ -428,7 +428,7 @@ function TableColumn({
             <PopoverSeparator className="my-1" />
             <PopoverClose asChild>
               <Button
-                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                className="bg-inherit text-destructive-600 justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
                   appendMessage({
                     role: 'user',
@@ -436,7 +436,7 @@ function TableColumn({
                   })
                 }
               >
-                <Trash2 size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+                <Trash2 size={16} strokeWidth={2} className="flex-shrink-0" />
 
                 <span>Remove column</span>
               </Button>
