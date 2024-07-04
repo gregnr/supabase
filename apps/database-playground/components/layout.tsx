@@ -6,7 +6,7 @@ import 'chartjs-adapter-date-fns'
 import { Button } from '@ui/components/shadcn/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@ui/components/shadcn/ui/popover'
 import { LazyMotion, m } from 'framer-motion'
-import { CircleEllipsis, Pencil, Trash2 } from 'lucide-react'
+import { CircleEllipsis, PackagePlus, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { PropsWithChildren, useState } from 'react'
@@ -35,7 +35,7 @@ export default function Layout({ children }: LayoutProps) {
               router.push('/')
             }}
           >
-            + New database
+            <PackagePlus /> New database
           </Button>
           {databases && (
             <m.div
