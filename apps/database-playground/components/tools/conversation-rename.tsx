@@ -38,7 +38,7 @@ export default function ConversationRename({ toolInvocation }: CsvRequestProps) 
           onClick={() => {
             appendMessage({
               role: 'user',
-              content: 'Rename the conversation',
+              content: "Let's rename the conversation. Any suggestions?",
             })
           }}
         >
