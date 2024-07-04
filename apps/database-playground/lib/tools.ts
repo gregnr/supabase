@@ -43,6 +43,15 @@ export const tools = {
       })
     ),
   },
+  renameConversation: {
+    description: 'Gives the conversation a short and concise name.',
+    args: z.object({ name: z.string() }),
+    result: result(
+      z.object({
+        message: z.string(),
+      })
+    ),
+  },
   brainstormReports: {
     description: 'Brainstorms some interesting reports to show to the user.',
     args: z.object({

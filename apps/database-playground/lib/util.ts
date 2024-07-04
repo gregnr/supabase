@@ -22,3 +22,19 @@ export function ensureMessageId(message: Message | CreateMessage): asserts messa
     message.id = generateId()
   }
 }
+
+/**
+ * Checks if the message is a user message sent by the
+ * application instead of the user.
+ *
+ * _(eg. renaming database at start of conversation)_
+ */
+export function isAutomatedUserMessage(m: Message) {
+  return (
+    m.role === 'user' &&
+    typeof m.data === 'object' &&
+    m.data !== null &&
+    'automated' in m.data &&
+    m.data.automated === true
+  )
+}

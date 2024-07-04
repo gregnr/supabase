@@ -23,6 +23,7 @@ import { AiIconAnimation, cn } from 'ui'
 import { TablesData } from '~/data/tables/tables-query'
 import { saveFile } from '~/lib/files'
 import { useAutoScroll, useReportSuggestions } from '~/lib/hooks'
+import { isAutomatedUserMessage } from '~/lib/util'
 import ChatMessage from './chat-message'
 import { useWorkspace } from './workspace'
 
@@ -346,13 +347,15 @@ export default function Chat() {
               initial="show"
               animate="show"
             >
-              {messages.map((message, i) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isLast={i === messages.length - 1}
-                />
-              ))}
+              {messages
+                .filter((m) => !isAutomatedUserMessage(m))
+                .map((message, i) => (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isLast={i === messages.length - 1}
+                  />
+                ))}
               <AnimatePresence>
                 {isLoading && (
                   <m.div

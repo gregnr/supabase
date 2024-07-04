@@ -1,12 +1,13 @@
 import { useMutation, UseMutationOptions, useQueryClient } from '@tanstack/react-query'
 import { codeBlock } from 'common-tags'
 import { Database, getMetaDb } from '~/lib/db'
+import { getDatabaseQueryKey } from './database-query'
 import { getDatabasesQueryKey } from './databases-query'
 
 export type DatabaseUpdateVariables = {
   id: string
   name: string | null
-  hidden: boolean
+  isHidden: boolean
 }
 
 export const useDatabaseUpdateMutation = ({
@@ -17,7 +18,7 @@ export const useDatabaseUpdateMutation = ({
   const queryClient = useQueryClient()
 
   return useMutation<Database, Error, DatabaseUpdateVariables>({
-    mutationFn: async ({ id, name, hidden }) => {
+    mutationFn: async ({ id, name, isHidden }) => {
       const metaDb = await getMetaDb()
 
       const {
@@ -29,13 +30,16 @@ export const useDatabaseUpdateMutation = ({
           where id = $1
           returning id, name, created_at as "createdAt"
         `,
-        [id, name, hidden]
+        [id, name, isHidden]
       )
 
       return database
     },
     async onSuccess(data, variables, context) {
       await Promise.all([queryClient.invalidateQueries({ queryKey: getDatabasesQueryKey() })])
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getDatabaseQueryKey(variables.id) }),
+      ])
       return onSuccess?.(data, variables, context)
     },
     ...options,

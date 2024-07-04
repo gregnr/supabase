@@ -38,11 +38,11 @@ export default function Page() {
     <Workspace
       databaseId={nextDatabaseId}
       onStart={async () => {
+        // Make the DB no longer hidden
+        await updateDatabase({ id: nextDatabaseId, name: null, isHidden: false })
+
         // Navigate to this DB's path
         router.push(`/d/${nextDatabaseId}`)
-
-        // Make the DB no longer hidden
-        updateDatabase({ id: nextDatabaseId, name: null, hidden: false })
 
         // Pre-load the next DB (but without causing a re-render)
         const nextId = generateId()

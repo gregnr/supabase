@@ -1,3 +1,5 @@
+'use client'
+
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { generateId } from 'ai'
 import { useChat } from 'ai/react'
@@ -5,6 +7,7 @@ import { Chart } from 'chart.js'
 import { codeBlock } from 'common-tags'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '~/components/workspace'
+import { useDatabaseUpdateMutation } from '~/data/databases/database-update-mutation'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
 import { getDb } from './db'
@@ -279,6 +282,7 @@ export function useAsyncMemo<T>(
 
 export function useOnToolCall(databaseId: string) {
   const { refetch: refetchTables } = useTablesQuery({ databaseId, schemas: ['public'] })
+  const { mutateAsync: updateDatabase } = useDatabaseUpdateMutation()
 
   return useCallback<OnToolCall>(
     async ({ toolCall }) => {
@@ -296,6 +300,23 @@ export function useOnToolCall(databaseId: string) {
           return {
             success: true,
             tables,
+          }
+        }
+        case 'renameConversation': {
+          const { name } = toolCall.args
+
+          try {
+            await updateDatabase({ id: databaseId, name, isHidden: false })
+
+            return {
+              success: true,
+              message: 'Database conversation has been successfully renamed.',
+            }
+          } catch (err) {
+            return {
+              success: false,
+              message: err instanceof Error ? err.message : 'An unknown error occurred',
+            }
           }
         }
         case 'brainstormReports': {

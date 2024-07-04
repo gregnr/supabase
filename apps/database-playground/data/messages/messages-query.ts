@@ -16,6 +16,7 @@ export const useMessagesQuery = (
         codeBlock`
           select id, role, content, tool_invocations as "toolInvocations", created_at as "createdAt"
           from messages where database_id = $1
+          order by created_at asc
         `,
         [databaseId]
       )

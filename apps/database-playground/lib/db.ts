@@ -5,6 +5,7 @@ export type Database = {
   id: string
   name: string | null
   createdAt: Date
+  isHidden: boolean
 }
 
 const prefix = 'playground'

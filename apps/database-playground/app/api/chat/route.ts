@@ -6,24 +6,9 @@ import { convertToCoreTools, tools } from '~/lib/tools'
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
 
-type FileData = {
-  type: 'file'
-  file: {
-    id: string
-    type: string
-    name: string
-    size: number
-    lastModified: number
-    text: string
-  }
-}
-
-type Data = FileData
-
 type Message = {
   role: 'user' | 'assistant'
   content: string
-  data?: Data
   toolInvocations?: (ToolInvocation & { result: any })[]
 }
 

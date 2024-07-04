@@ -1,6 +1,7 @@
 import { useMutation, UseMutationOptions, useQueryClient } from '@tanstack/react-query'
 import { codeBlock } from 'common-tags'
 import { Database, deleteDb, getMetaDb } from '~/lib/db'
+import { getDatabaseQueryKey } from './database-query'
 import { getDatabasesQueryKey } from './databases-query'
 
 export type DatabaseDeleteVariables = {
@@ -30,6 +31,9 @@ export const useDatabaseDeleteMutation = ({
     },
     async onSuccess(data, variables, context) {
       await Promise.all([queryClient.invalidateQueries({ queryKey: getDatabasesQueryKey() })])
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getDatabaseQueryKey(variables.id) }),
+      ])
       return onSuccess?.(data, variables, context)
     },
     ...options,

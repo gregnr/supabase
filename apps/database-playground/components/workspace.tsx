@@ -1,6 +1,8 @@
 import { CreateMessage, Message, useChat } from 'ai/react'
 import { useBreakpoint } from 'common'
 import { createContext, useCallback, useContext, useMemo } from 'react'
+import { getDatabase } from '~/data/databases/database-query'
+import { useDatabaseUpdateMutation } from '~/data/databases/database-update-mutation'
 import { useMessageCreateMutation } from '~/data/messages/message-create-mutation'
 import { useMessagesQuery } from '~/data/messages/messages-query'
 import { useTablesQuery } from '~/data/tables/tables-query'
@@ -11,12 +13,13 @@ import IDE from './ide'
 
 export type WorkspaceProps = {
   databaseId: string
-  onStart?: () => void
+  onStart?: () => void | Promise<void>
 }
 
 export default function Workspace({ databaseId, onStart }: WorkspaceProps) {
   const isSmallBreakpoint = useBreakpoint('lg')
   const onToolCall = useOnToolCall(databaseId)
+  const { mutateAsync: updateDatabase } = useDatabaseUpdateMutation()
   const { mutateAsync: saveMessage } = useMessageCreateMutation(databaseId)
 
   const { data: tables, isLoading: isLoadingSchema } = useTablesQuery({
@@ -35,12 +38,27 @@ export default function Workspace({ databaseId, onStart }: WorkspaceProps) {
     id: databaseId,
     api: '/api/chat',
     maxToolRoundtrips: 10,
-    onToolCall: onToolCall as any, // our `OnToolCall` type is more specific then `ai` SDK's
+    onToolCall: onToolCall as any, // our `OnToolCall` type is more specific than `ai` SDK's
     initialMessages:
       existingMessages && existingMessages.length > 0 ? existingMessages : initialMessages,
     async onFinish(message) {
       await saveMessage({ message })
-      await onStart?.()
+
+      const database = await getDatabase(databaseId)
+      const isStartOfConversation = database.isHidden && !message.toolInvocations
+
+      if (isStartOfConversation) {
+        await onStart?.()
+
+        // Intentionally using `append` vs `appendMessage` so that this message isn't persisted in the meta DB
+        await append({
+          role: 'user',
+          content: 'Name this conversation. No need to reply.',
+          data: {
+            automated: true,
+          },
+        })
+      }
     },
   })
 
@@ -53,7 +71,6 @@ export default function Workspace({ databaseId, onStart }: WorkspaceProps) {
     [saveMessage, append]
   )
 
-  // const isLoadingMessages = messages.length === 0 && isExistingMessagesLoading
   const isConversationStarted =
     initialMessages !== undefined && messages.length > initialMessages.length
 
