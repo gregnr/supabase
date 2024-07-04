@@ -2,7 +2,6 @@ import { CreateMessage, Message, useChat } from 'ai/react'
 import { useBreakpoint } from 'common'
 import { createContext, useCallback, useContext, useMemo } from 'react'
 import { getDatabase } from '~/data/databases/database-query'
-import { useDatabaseUpdateMutation } from '~/data/databases/database-update-mutation'
 import { useMessageCreateMutation } from '~/data/messages/message-create-mutation'
 import { useMessagesQuery } from '~/data/messages/messages-query'
 import { useTablesQuery } from '~/data/tables/tables-query'
@@ -19,7 +18,6 @@ export type WorkspaceProps = {
 export default function Workspace({ databaseId, onStart }: WorkspaceProps) {
   const isSmallBreakpoint = useBreakpoint('lg')
   const onToolCall = useOnToolCall(databaseId)
-  const { mutateAsync: updateDatabase } = useDatabaseUpdateMutation()
   const { mutateAsync: saveMessage } = useMessageCreateMutation(databaseId)
 
   const { data: tables, isLoading: isLoadingSchema } = useTablesQuery({

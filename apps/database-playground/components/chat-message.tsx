@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import { markdownComponents } from 'ui'
+import { isAutomatedUserMessage } from '~/lib/util'
 import { ToolUi } from './tools'
 
 export type ChatMessageProps = {
@@ -18,6 +19,10 @@ export type ChatMessageProps = {
 function ChatMessage({ message, isLast }: ChatMessageProps) {
   switch (message.role) {
     case 'user':
+      if (isAutomatedUserMessage(message)) {
+        return null
+      }
+
       return (
         <m.div
           // Only track layout on the last message to improve performance

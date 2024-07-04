@@ -29,12 +29,12 @@ export function ensureMessageId(message: Message | CreateMessage): asserts messa
  *
  * _(eg. renaming database at start of conversation)_
  */
-export function isAutomatedUserMessage(m: Message) {
+export function isAutomatedUserMessage(message: Message) {
   return (
-    m.role === 'user' &&
-    typeof m.data === 'object' &&
-    m.data !== null &&
-    'automated' in m.data &&
-    m.data.automated === true
+    message.role === 'user' &&
+    typeof message.data === 'object' &&
+    message.data !== null &&
+    'automated' in message.data &&
+    message.data.automated === true
   )
 }
