@@ -1,3 +1,5 @@
+'use client'
+
 import { Editor } from '@monaco-editor/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ui/components/shadcn/ui/tabs'
 import { useBreakpoint } from 'common'

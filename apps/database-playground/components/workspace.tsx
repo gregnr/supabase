@@ -1,3 +1,5 @@
+'use client'
+
 import { CreateMessage, Message, useChat } from 'ai/react'
 import { useBreakpoint } from 'common'
 import { createContext, useCallback, useContext, useMemo } from 'react'
