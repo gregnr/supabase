@@ -17,7 +17,7 @@ export const useDatabaseCreateMutation = ({
   const queryClient = useQueryClient()
 
   return useMutation<Database, Error, DatabaseCreateVariables>({
-    mutationFn: async ({ id = generateId(), isHidden }) => {
+    mutationFn: async ({ id = generateId(12), isHidden }) => {
       const metaDb = await getMetaDb()
 
       const {

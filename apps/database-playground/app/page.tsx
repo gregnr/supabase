@@ -45,7 +45,7 @@ export default function Page() {
         router.push(`/d/${nextDatabaseId}`)
 
         // Pre-load the next DB (but without causing a re-render)
-        const nextId = generateId()
+        const nextId = generateId(12)
         localStorage.setItem('next-db-id', JSON.stringify(nextId))
         preloadDb(nextId)
       }}
