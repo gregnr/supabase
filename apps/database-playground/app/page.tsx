@@ -9,6 +9,8 @@ import { useDatabaseUpdateMutation } from '~/data/databases/database-update-muta
 import { getDb } from '~/lib/db'
 import { useLocalStorage } from '~/lib/hooks'
 
+export const dynamic = 'force-static'
+
 export default function Page() {
   const router = useRouter()
 

@@ -9,6 +9,8 @@ import Providers from '~/components/providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
+export const dynamic = 'force-static'
+
 export const metadata: Metadata = {
   title: 'DB Playground',
   description: 'In-browser Postgres sandbox with AI assistance',
