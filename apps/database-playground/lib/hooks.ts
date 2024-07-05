@@ -1,22 +1,32 @@
+'use client'
+
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { nanoid } from 'ai'
+import { generateId } from 'ai'
 import { useChat } from 'ai/react'
+import { Chart } from 'chart.js'
 import { codeBlock } from 'common-tags'
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useWorkspace } from '~/components/workspace'
+import { useDatabaseUpdateMutation } from '~/data/databases/database-update-mutation'
 import { useTablesQuery } from '~/data/tables/tables-query'
 import { Report } from '~/lib/schema'
+import { getDb } from './db'
+import { loadFile, saveFile } from './files'
 import { SmoothScroller } from './smooth-scroller'
+import { OnToolCall } from './tools'
 
 export type UseReportSuggestionsOptions = {
   enabled?: boolean
 }
 
-export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOptions = {}) {
-  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
+export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOptions) {
+  const { databaseId, appendMessage } = useWorkspace()
+  const { data: tables } = useTablesQuery({ databaseId, schemas: ['public'] })
   const [reports, setReports] = useState<Report[]>()
 
-  const { append, setMessages } = useChat({
-    api: 'api/chat',
+  const { setMessages } = useChat({
+    id: databaseId,
+    api: '/api/chat',
     async onToolCall({ toolCall }) {
       switch (toolCall.toolName) {
         case 'brainstormReports': {
@@ -32,12 +42,12 @@ export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOpt
       // Provide the LLM with the current schema before invoking the tool call
       setMessages([
         {
-          id: nanoid(),
+          id: generateId(),
           role: 'assistant',
           content: '',
           toolInvocations: [
             {
-              toolCallId: nanoid(),
+              toolCallId: generateId(),
               toolName: 'getDatabaseSchema',
               args: {},
               result: tables,
@@ -46,7 +56,7 @@ export function useReportSuggestions({ enabled = true }: UseReportSuggestionsOpt
         },
       ])
 
-      append({
+      appendMessage({
         role: 'user',
         content: codeBlock`
         Brainstorm 5 interesting charts that can be generated based on tables and their columns in the database.
@@ -71,22 +81,26 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   const queryClient = useQueryClient()
   const queryKey = ['local-storage', key]
 
-  const { data: storedValue = initialValue } = useQuery({
-    queryKey,
-    queryFn: () => {
-      if (typeof window === 'undefined') {
-        return initialValue
-      }
+  const currentValue = window.localStorage.getItem(key)
 
-      const item = window.localStorage.getItem(key)
+  const { data: storedValue = currentValue ? (JSON.parse(currentValue) as T) : initialValue } =
+    useQuery({
+      queryKey,
+      queryFn: () => {
+        if (typeof window === 'undefined') {
+          return initialValue
+        }
 
-      if (!item) {
-        return initialValue
-      }
+        const item = window.localStorage.getItem(key)
 
-      return JSON.parse(item) as T
-    },
-  })
+        if (!item) {
+          window.localStorage.setItem(key, JSON.stringify(initialValue))
+          return initialValue
+        }
+
+        return JSON.parse(item) as T
+      },
+    })
 
   const setValue: Dispatch<SetStateAction<T>> = (value) => {
     const valueToStore = value instanceof Function ? value(storedValue) : value
@@ -264,4 +278,163 @@ export function useAsyncMemo<T>(
   }, dependencies)
 
   return { value, error, loading }
+}
+
+export function useOnToolCall(databaseId: string) {
+  const { refetch: refetchTables } = useTablesQuery({ databaseId, schemas: ['public'] })
+  const { mutateAsync: updateDatabase } = useDatabaseUpdateMutation()
+
+  return useCallback<OnToolCall>(
+    async ({ toolCall }) => {
+      const db = await getDb(databaseId)
+
+      switch (toolCall.toolName) {
+        case 'getDatabaseSchema': {
+          const { data: tables, error } = await refetchTables()
+
+          // TODO: handle this error in the UI
+          if (error) {
+            throw error
+          }
+
+          return {
+            success: true,
+            tables,
+          }
+        }
+        case 'renameConversation': {
+          const { name } = toolCall.args
+
+          try {
+            await updateDatabase({ id: databaseId, name, isHidden: false })
+
+            return {
+              success: true,
+              message: 'Database conversation has been successfully renamed.',
+            }
+          } catch (err) {
+            return {
+              success: false,
+              message: err instanceof Error ? err.message : 'An unknown error occurred',
+            }
+          }
+        }
+        case 'brainstormReports': {
+          return {
+            success: true,
+            message: 'Reports have been brainstormed. Relay this info to the user.',
+          }
+        }
+        case 'executeSql': {
+          try {
+            const { sql } = toolCall.args
+
+            const results = await db.exec(sql)
+
+            const { data: tables, error } = await refetchTables()
+
+            // TODO: handle this error in the UI
+            if (error) {
+              throw error
+            }
+
+            return {
+              success: true,
+              queryResults: results,
+              updatedSchema: tables,
+            }
+          } catch (err) {
+            if (err instanceof Error) {
+              return { success: false, error: err.message }
+            }
+            throw err
+          }
+        }
+        case 'generateChart': {
+          // TODO: correct zod schema for Chart.js `config`
+          const { config } = toolCall.args as any
+
+          // Validate that the chart can be rendered without error
+          const canvas = document.createElement('canvas', {})
+          canvas.className = 'invisible'
+          document.body.appendChild(canvas)
+
+          try {
+            const chart = new Chart(canvas, config)
+            chart.destroy()
+            return {
+              success: true,
+              message:
+                "The chart has been generated and displayed to the user above. Acknowledge the user's request.",
+            }
+          } catch (err) {
+            if (err instanceof Error) {
+              return { success: false, error: err.message }
+            }
+            throw err
+          } finally {
+            canvas.remove()
+          }
+        }
+        case 'importCsv': {
+          const { fileId, sql } = toolCall.args
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileId}.csv`
+
+          try {
+            const file = await loadFile(fileId)
+            const csv = await file.text()
+
+            await db.writeFile(tempFile, csv.trim())
+            await db.exec(sql)
+            await db.removeFile(tempFile)
+            await refetchTables()
+
+            return {
+              success: true,
+              message: 'The CSV has been imported successfully.',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
+          }
+        }
+        case 'exportCsv': {
+          const { fileName, sql } = toolCall.args
+
+          // Temporary file in the DB's virtual FS
+          const tempFile = `/tmp/${fileName}`
+          const fileId = generateId()
+
+          try {
+            await db.exec(sql)
+            const data = await db.readFile(tempFile)
+            await db.removeFile(tempFile)
+            const file = new File([data], fileName, { type: 'text/csv' })
+            await saveFile(fileId, file)
+
+            return {
+              success: true,
+              message: 'The query as been successfully exported as a CSV. Do not link to it.',
+              fileId,
+              file: {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              },
+            }
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'An unknown error has occurred',
+            }
+          }
+        }
+      }
+    },
+    [refetchTables, databaseId]
+  )
 }

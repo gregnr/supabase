@@ -3,12 +3,15 @@ import 'reactflow/dist/style.css'
 
 import TablesGraph from './table-graph'
 
-const SchemaGraph = ({ schema }: { schema: string }) => {
+export type SchemaGraphProps = {
+  databaseId: string
+  schema: string
+}
+
+export default function SchemaGraph({ databaseId, schema }: SchemaGraphProps) {
   return (
     <ReactFlowProvider>
-      <TablesGraph schema={schema} />
+      <TablesGraph databaseId={databaseId} schema={schema} />
     </ReactFlowProvider>
   )
 }
-
-export default SchemaGraph

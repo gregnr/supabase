@@ -6,7 +6,6 @@ import {
   PopoverSeparator,
   PopoverTrigger,
 } from '@ui/components/shadcn/ui/popover'
-import { useChat } from 'ai/react'
 import { AnimatePresence, m } from 'framer-motion'
 import {
   CircleSlash,
@@ -19,7 +18,7 @@ import {
   Table2,
   Trash2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   EdgeProps,
   Handle,
@@ -30,8 +29,7 @@ import {
   useUpdateNodeInternals,
 } from 'reactflow'
 import { cn } from 'ui'
-import { useTablesQuery } from '~/data/tables/tables-query'
-import { getInitialMessages } from '../chat'
+import { useWorkspace } from '../workspace'
 
 // ReactFlow is scaling everything by the factor of 2
 export const TABLE_NODE_WIDTH = 640
@@ -71,12 +69,7 @@ const itemHeight = 'h-[44px]'
 /**
  * Custom node to display database tables.
  */
-export const TableNode = ({
-  id,
-  data,
-  targetPosition,
-  sourcePosition,
-}: NodeProps<TableNodeData>) => {
+export function TableNode({ id, data, targetPosition, sourcePosition }: NodeProps<TableNodeData>) {
   const updateNodeInternals = useUpdateNodeInternals()
   const [showHandles, setShowHandles] = useState(false)
 
@@ -170,20 +163,13 @@ function TableColumn({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const [isRenaming, setIsRenaming] = useState(false)
 
-  const { data: tables } = useTablesQuery({ schemas: ['public'], includeColumns: true })
-  const initialMessages = useMemo(() => getInitialMessages(tables), [tables])
-
   useOnViewportChange({
     onChange() {
       setIsPopoverOpen(false)
     },
   })
 
-  const { append } = useChat({
-    id: 'main',
-    api: 'api/chat',
-    initialMessages,
-  })
+  const { appendMessage } = useWorkspace()
 
   return (
     <Popover
@@ -359,7 +345,7 @@ function TableColumn({
                 const formData = new FormData(e.target)
                 const newName = formData.get('name')
 
-                append({
+                appendMessage({
                   role: 'user',
                   content: `Rename the "${column.name}" column in the ${data.name} table to "${newName}"`,
                 })
@@ -390,7 +376,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Make the "${column.name}" column in the ${data.name} table ${column.isNullable ? 'not nullable' : 'nullable'}`,
                   })
@@ -409,7 +395,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Make the "${column.name}" column in the ${data.name} table ${column.isUnique ? 'not unique' : 'unique'}`,
                   })
@@ -428,7 +414,7 @@ function TableColumn({
               <Button
                 className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Help me choose the best index for the "${column.name}" column in the ${data.name} table`,
                   })
@@ -442,15 +428,15 @@ function TableColumn({
             <PopoverSeparator className="my-1" />
             <PopoverClose asChild>
               <Button
-                className="bg-inherit justify-start hover:bg-neutral-200 flex gap-3"
+                className="bg-inherit text-destructive-600 justify-start hover:bg-neutral-200 flex gap-3"
                 onClick={() =>
-                  append({
+                  appendMessage({
                     role: 'user',
                     content: `Remove the "${column.name}" column in the ${data.name} table`,
                   })
                 }
               >
-                <Trash2 size={16} strokeWidth={2} className="flex-shrink-0 text-light" />
+                <Trash2 size={16} strokeWidth={2} className="flex-shrink-0" />
 
                 <span>Remove column</span>
               </Button>

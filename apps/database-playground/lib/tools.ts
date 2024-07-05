@@ -43,6 +43,15 @@ export const tools = {
       })
     ),
   },
+  renameConversation: {
+    description: 'Gives the conversation a short and concise name.',
+    args: z.object({ name: z.string() }),
+    result: result(
+      z.object({
+        message: z.string(),
+      })
+    ),
+  },
   brainstormReports: {
     description: 'Brainstorms some interesting reports to show to the user.',
     args: z.object({
@@ -72,19 +81,6 @@ export const tools = {
         .describe(
           'The `config` passed to `new Chart(ctx, config). Includes `type`, `data`, `options`, etc.'
         ),
-    }),
-    result: result(
-      z.object({
-        message: z.string(),
-      })
-    ),
-  },
-  switchTab: {
-    description: codeBlock`
-      Switches to a different tab.
-    `,
-    args: z.object({
-      tab: tabsSchema,
     }),
     result: result(
       z.object({

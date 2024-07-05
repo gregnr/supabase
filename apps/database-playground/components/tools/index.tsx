@@ -1,4 +1,5 @@
 import { ToolInvocation } from '~/lib/tools'
+import ConversationRename from './conversation-rename'
 import CsvExport from './csv-export'
 import CsvImport from './csv-import'
 import CsvRequest from './csv-request'
@@ -21,6 +22,8 @@ export function ToolUi({ toolInvocation }: ToolUiProps) {
       return <CsvImport toolInvocation={toolInvocation} />
     case 'exportCsv':
       return <CsvExport toolInvocation={toolInvocation} />
+    case 'renameConversation':
+      return <ConversationRename toolInvocation={toolInvocation} />
   }
   return null
 }

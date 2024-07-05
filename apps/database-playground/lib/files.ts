@@ -16,7 +16,6 @@ export function saveFile(id: string, file: File) {
       store.put(file, id)
 
       transaction.oncomplete = () => {
-        console.log('File stored successfully')
         resolve()
       }
 
