@@ -5,8 +5,6 @@ import { useEffect } from 'react'
 import Workspace from '~/components/workspace'
 import { getDb } from '~/lib/db'
 
-export const dynamic = 'force-static'
-
 export default function Page({ params }: { params: { id: string } }) {
   const databaseId = params.id
   const router = useRouter()
