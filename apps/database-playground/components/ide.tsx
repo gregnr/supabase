@@ -14,8 +14,8 @@ import { ToolInvocation } from '~/lib/tools'
 import SchemaGraph from './schema/graph'
 import { useWorkspace } from './workspace'
 
-const initialMigrationSql = '-- Migrations will appear here as you chat with Supabase AI\n'
-const initialSeedSql = '-- Seeds will appear here as you chat with Supabase AI\n'
+const initialMigrationSql = '-- Migrations will appear here as you chat with AI\n'
+const initialSeedSql = '-- Seeds will appear here as you chat with AI\n'
 
 export type IDEProps = PropsWithChildren
 
@@ -24,7 +24,7 @@ export default function IDE({ children }: IDEProps) {
   const [tab, setTab] = useState<TabValue>('diagram')
 
   const isSmallBreakpoint = useBreakpoint('lg')
-  const { data: messages, refetch: refetchMessages } = useMessagesQuery(databaseId)
+  const { data: messages } = useMessagesQuery(databaseId)
 
   useEffect(() => {
     if (isSmallBreakpoint) {
